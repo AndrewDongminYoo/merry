@@ -1,4 +1,4 @@
-import 'dart:io' show File, Directory, IOOverrides;
+import 'dart:io' show Directory, File, IOOverrides;
 
 import 'package:derry/error.dart';
 import 'package:derry/utils.dart';
@@ -7,7 +7,7 @@ import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
 
-@GenerateNiceMocks([MockSpec<File>(), MockSpec<Directory>()])
+@GenerateMocks([File, Directory])
 import './utils_test.mocks.dart';
 
 void main() {
@@ -149,6 +149,7 @@ void main() {
         final pubspec = Pubspec();
 
         // filePath
+        when(mockCurrentDirectory.uri).thenReturn(Uri.file("current-directory-path"));
         when(mockCurrentDirectory.path).thenReturn("current-directory-path");
         expect(Pubspec.filePath, equals(path.join("current-directory-path", pubspecFileName)));
 
@@ -341,7 +342,7 @@ c:
     test("getDefinition errors throw", () {
       // when script doesn't exist at all
       expect(
-        () async => registry.getDefinition("script_b"),
+        () => registry.getDefinition("script_b"),
         throwsA(
           equals(
             DerryError(
@@ -355,7 +356,7 @@ c:
       // when script exist but of invalid type
       ScriptsRegistry.scripts = {"script_c": 0}; // force update for test
       expect(
-        () async => registry.getDefinition("script_c"),
+        () => registry.getDefinition("script_c"),
         throwsA(
           equals(
             DerryError(
@@ -371,7 +372,7 @@ c:
       // when (scripts) is null
       ScriptsRegistry.scripts = {"script_d": {}}; // force update for test
       expect(
-        () async => registry.getDefinition("script_d"),
+        () => registry.getDefinition("script_d"),
         throwsA(
           equals(
             DerryError(
@@ -389,7 +390,7 @@ c:
         }
       }; // force update for test
       expect(
-        () async => registry.getDefinition("script_e"),
+        () => registry.getDefinition("script_e"),
         throwsA(
           equals(
             DerryError(
