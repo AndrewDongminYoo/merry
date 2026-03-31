@@ -2,6 +2,10 @@
 
 Merry is a script manager for Dart.
 
+> **Merry** is a maintained fork of [derry](https://pub.dev/packages/derry) by [Frenco](https://github.com/frencojobs).
+> All script definitions are compatible — only the CLI command changes from `derry` to `merry`.
+> See [Migrating from derry](#migrating-from-derry) below.
+
 ## Overview
 
 Merry helps you define shortcut scripts, and save you from having to type very long and forgettable long lines of scripts, again and again.
@@ -163,6 +167,83 @@ release:
 `merry test` will spawn a new merry process to execute, while references won't, reducing the time took to run dart code, and spawn that process.
 But note that references will take a whole line of script. For example, you have to give a separate line for a subcommand, you can't use them together with other scripts or sandwiched in a string.
 
+**Platform-specific scripts**
+
+Use `(linux)`, `(macos)`, or `(windows)` keys to define platform-dependent scripts. The correct one is selected automatically at runtime; `(scripts)` is used as a fallback when no key matches the current OS.
+
+```yaml
+open:
+  (linux): xdg-open .
+  (macos): open .
+  (windows): explorer .
+```
+
+**Default script for a command group**
+
+When a command group is called without a sub-command, the `(default)` script is executed.
+
+```yaml
+build:
+  (default): flutter build apk
+  web: flutter build web
+```
+
+```bash
+merry build      # runs flutter build apk
+merry build web  # runs flutter build web
+```
+
+**Positional arguments**
+
+Use `$1`, `$2`, etc. to inject individual arguments from the command line into a script. Remaining arguments not consumed by positional tokens are appended at the end.
+
+```yaml
+greet: echo Hello $1
+run: dart run $1 $2
+```
+
+```bash
+merry greet World   # → echo Hello World
+merry run bin/main  # → dart run bin/main
+```
+
+**Working directory**
+
+Use `(workdir)` to run a script inside a specific directory. The path is relative to the project root.
+
+```yaml
+native:
+  (workdir): packages/native
+  (scripts): cargo build --release
+```
+
+**Command aliases**
+
+Use `(aliases)` to define short aliases for a command. Aliases can be a single string or a list of strings.
+
+```yaml
+install:
+  (aliases): [i, in]
+  (scripts): dart pub get
+```
+
+```bash
+merry i   # → merry install
+merry in  # → merry install
+```
+
+**Variable substitution**
+
+Define reusable variables in a `(variables)` section at the top level or inside any command group. Reference them with `${VAR}` syntax in scripts. Environment variables are used as a fallback for undefined names.
+
+```yaml
+(variables):
+  OUTPUT: build/release
+  MODE: release
+
+bundle: flutter build apk --output ${OUTPUT} --${MODE}
+```
+
 **List available scripts**
 
 Use this command to see what scripts are available in the current configuration.
@@ -185,6 +266,19 @@ merry source # --absolute or -a to show absolute path
 dart pub global activate merry # or
 merry upgrade # will run `dart pub global activate merry`
 ```
+
+<br>
+
+## Migrating from derry
+
+1. Deactivate derry and install merry:
+   ```bash
+   dart pub global deactivate derry
+   dart pub global activate merry
+   ```
+2. Replace all `derry` invocations with `merry`
+3. Optionally rename `derry.yaml` → `merry.yaml` and update the `scripts:` value in `pubspec.yaml`
+4. No changes to script definitions are required — the format is fully compatible
 
 <br>
 

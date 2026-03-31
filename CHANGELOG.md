@@ -1,3 +1,96 @@
+## 2.0.0
+
+**Merry** is a maintained fork of [derry](https://pub.dev/packages/derry) by
+[Frenco](https://github.com/frencojobs), which has been unmaintained since
+February 2023. All original functionality is preserved and the script
+definition format is fully compatible — only the CLI command name changes.
+
+### Breaking changes
+
+- Package renamed from `derry` to `merry`; CLI command is now `merry`
+- Minimum Dart SDK raised to `>=3.10.4`
+- Scripts definition file is now named `merry.yaml` by convention (any
+  filename is still accepted)
+
+### Bug fixes
+
+- Fix missing `await` before main script execution, which caused post-hooks
+  to run concurrently with the main script instead of after it
+- Fix Ctrl+C propagation: signals now reliably kill the child process across
+  multiple script executions; previously `ctrlc::set_handler` was called once
+  per script invocation, causing a panic on the second call
+- Fix CI blob build workflow: `ubuntu-20.04` and `macos-13` runners are
+  retired; Windows `COPY` failed with a file-lock error when the Dart runtime
+  had the existing DLL open
+
+### New features
+
+- **`(default)`** — Define a default script for a command group, executed
+  when the group name is used without a sub-command
+
+  ```yaml
+  build:
+    (default): flutter build apk
+    web: flutter build web
+  ```
+
+- **Positional arguments** (`$1`, `$2`, …) — Inject individual command-line
+  arguments into a script by position
+
+  ```yaml
+  greet: echo Hello $1
+  # merry greet World  →  echo Hello World
+  ```
+
+- **`(workdir)`** — Run a script in a specific working directory
+
+  ```yaml
+  native:
+    (workdir): packages/native
+    (scripts): cargo build --release
+  ```
+
+- **Platform-specific scripts** (`(linux)`, `(macos)`, `(windows)`) —
+  Select the right script automatically based on the current OS; falls back
+  to `(scripts)` if no platform key matches
+
+  ```yaml
+  open:
+    (linux): xdg-open .
+    (macos): open .
+    (windows): explorer .
+  ```
+
+- **`(aliases)`** — Define short aliases for frequently-used commands
+
+  ```yaml
+  install:
+    (aliases): [i, in]
+    (scripts): dart pub get
+  # merry i  →  merry install
+  ```
+
+- **`(variables)`** / **`${VAR}`** — Define reusable variables scoped to the
+  scripts map; environment variables are used as a fallback for unknown names
+  ```yaml
+  (variables):
+    OUTPUT: build/release
+  bundle: flutter build apk --output ${OUTPUT}
+  ```
+
+### Migrating from derry
+
+1. Deactivate derry and install merry:
+   ```bash
+   dart pub global deactivate derry
+   dart pub global activate merry
+   ```
+2. Replace all `derry` invocations with `merry` in scripts, CI pipelines,
+   and documentation
+3. Optionally rename `derry.yaml` → `merry.yaml` and update the `scripts:`
+   value in `pubspec.yaml` — existing filenames continue to work unchanged
+4. No changes to script definitions are required
+
 ## 1.5.0
 
 - Add support for M1 Macs
