@@ -16,10 +16,10 @@ multiline:
 prep:
   - echo step 1
   - echo step 2
-test: # call with derry test
+test: # call with merry test
   - $prep
   - echo pub run test
-build: # call with derry build
+build: # call with merry build
   - \$prep # should not work
   - echo flutter build
 nested: # example for nested scripts

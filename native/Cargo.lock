@@ -47,7 +47,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "derry"
+name = "merry"
 version = "0.1.0"
 dependencies = [
  "colored",

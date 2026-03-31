@@ -1,10 +1,10 @@
-# Derry
+# Merry
 
-Derry is a script manager for Dart.
+Merry is a script manager for Dart.
 
 ## Overview
 
-Derry helps you define shortcut scripts, and save you from having to type very long and forgettable long lines of scripts, again and again.
+Merry helps you define shortcut scripts, and save you from having to type very long and forgettable long lines of scripts, again and again.
 
 Instead of running this every time,
 
@@ -22,30 +22,30 @@ scripts:
 and run
 
 ```bash
-derry build
+merry build
 ```
 
 <br>
 
 ## Installation
 
-Install derry as a global dependency from [pub.dev](https://pub.dev) like this.
+Install merry as a global dependency from [pub.dev](https://pub.dev) like this.
 
 ```bash
-dart pub global activate derry
+dart pub global activate merry
 ```
 
-Then use derry to run a command from the current dart/flutter project.
+Then use merry to run a command from the current dart/flutter project.
 
 ```bash
-derry [script]
+merry [script]
 ```
 
 <br>
 
 ## Usage
 
-When called, derry will look for a `pubspec.yaml` file in the current directory, and will throw an error if it doesn't exist. The scripts can be declared within the `scripts` node of the `pubspec.yaml` file.
+When called, merry will look for a `pubspec.yaml` file in the current directory, and will throw an error if it doesn't exist. The scripts can be declared within the `scripts` node of the `pubspec.yaml` file.
 
 ```yaml
 scripts:
@@ -53,9 +53,9 @@ scripts:
 ```
 
 ```bash
-derry build
+merry build
 # or even with additional arguments
-derry build -- --delete-conflicting-outputs
+merry build -- --delete-conflicting-outputs
 ```
 
 <br>
@@ -68,11 +68,11 @@ Scripts can be configured just inside the `pubspec.yaml` file or within a separa
 
 ```yaml
 # pubspec.yaml
-scripts: derry.yaml
+scripts: merry.yaml
 ```
 
 ```yaml
-# derry.yaml
+# merry.yaml
 build: dart run build_runner build
 ```
 
@@ -99,11 +99,11 @@ build:
     - echo 1 # do something else
 ```
 
-And you can use them by calling `derry build windows` on windows and `derry build mac` on macOS.
+And you can use them by calling `merry build windows` on windows and `merry build mac` on macOS.
 
 **Pre and post scripts**
 
-With pre & post scripts, you can easily define a script to run before and after a specific script without hassling with references. Derry automatically understands them from the names.
+With pre & post scripts, you can easily define a script to run before and after a specific script without hassling with references. Merry automatically understands them from the names.
 
 ```yaml
 prepublish:
@@ -117,7 +117,7 @@ postpublish:
 
 **Configure script descriptions**
 
-You can add a string to `(description)` option, which can be useful when viewing through a list of available via `derry ls -d` command. When you are using `(description)` field, you must use `(script)` field to define scripts.
+You can add a string to `(description)` option, which can be useful when viewing through a list of available via `merry ls -d` command. When you are using `(description)` field, you must use `(script)` field to define scripts.
 
 ```yaml
 build:
@@ -142,14 +142,14 @@ build: >
 
 **Use references**
 
-When defining scripts, you can reference to other scripts via `$` syntax. These references to scripts won't be executed with a separate derry process. For example,
+When defining scripts, you can reference to other scripts via `$` syntax. These references to scripts won't be executed with a separate merry process. For example,
 
 ```yaml
 test:
   - dart run test
   - echo "test completed"
 build:
-  - $test # instead of using derry test
+  - $test # instead of using merry test
   - $test --ignored # even with arguments
   - flutter build
 generate:
@@ -160,7 +160,7 @@ release:
   - $build
 ```
 
-`derry test` will spawn a new derry process to execute, while references won't, reducing the time took to run dart code, and spawn that process.
+`merry test` will spawn a new merry process to execute, while references won't, reducing the time took to run dart code, and spawn that process.
 But note that references will take a whole line of script. For example, you have to give a separate line for a subcommand, you can't use them together with other scripts or sandwiched in a string.
 
 **List available scripts**
@@ -168,22 +168,22 @@ But note that references will take a whole line of script. For example, you have
 Use this command to see what scripts are available in the current configuration.
 
 ```bash
-derry ls # --description or -d to output descriptions
+merry ls # --description or -d to output descriptions
 ```
 
-**Check the location of the derry scripts**
+**Check the location of the merry scripts**
 
-Use this command to see the location (both absolute and relative) path of the derry script file. You can also use this to check if the scripts are correctly formatted or the location is correct.
+Use this command to see the location (both absolute and relative) path of the merry script file. You can also use this to check if the scripts are correctly formatted or the location is correct.
 
 ```bash
-derry source # --absolute or -a to show absolute path
+merry source # --absolute or -a to show absolute path
 ```
 
-**Upgrade derry**
+**Upgrade merry**
 
 ```bash
-dart pub global activate derry # or
-derry upgrade # will run `dart pub global activate derry`
+dart pub global activate merry # or
+merry upgrade # will run `dart pub global activate merry`
 ```
 
 <br>

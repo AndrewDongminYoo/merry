@@ -1,6 +1,6 @@
 import 'dart:io' show Directory, File;
 
-import 'package:merry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart' show YamlDocument, YamlMap, loadYamlDocument;
 
@@ -8,16 +8,13 @@ import 'package:yaml/yaml.dart' show YamlDocument, YamlMap, loadYamlDocument;
 Future<YamlDocument> _readYamlFile(String filePath) async {
   final file = File(path.join(Directory.current.path, filePath));
   if (!await file.exists()) {
-    throw DerryError(
-      type: ErrorCode.fileNotFound,
-      body: {'path': filePath},
-    );
+    throw MerryError(type: ErrorCode.fileNotFound, body: {'path': filePath});
   }
   final content = await file.readAsString();
   try {
     return loadYamlDocument(content);
   } catch (e) {
-    throw DerryError(
+    throw MerryError(
       type: ErrorCode.invalidYaml,
       body: {'path': filePath, 'origin': e},
     );
@@ -30,12 +27,9 @@ Future<Map> readYamlMap(String filePath) async {
   final document = await _readYamlFile(filePath);
 
   if (document.contents is! YamlMap) {
-    throw DerryError(
+    throw MerryError(
       type: ErrorCode.invalidYamlMap,
-      body: {
-        'path': filePath,
-        'content': document,
-      },
+      body: {'path': filePath, 'content': document},
     );
   }
 

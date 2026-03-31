@@ -13,10 +13,7 @@ class Info extends Equatable {
   final String? version;
 
   /// Constructs a constant [Info] instance.
-  const Info({
-    this.name,
-    this.version,
-  });
+  const Info({this.name, this.version});
 
   @override
   String toString() => '$name@$version';

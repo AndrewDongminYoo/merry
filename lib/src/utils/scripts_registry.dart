@@ -1,7 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:merry/bindings.dart' as bindings;
-import 'package:merry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
 import 'package:merry/utils.dart'
@@ -63,17 +63,15 @@ class ScriptsRegistry {
 
       /// for when script is not defined at all
       if (scriptFound == null) {
-        throw DerryError(
+        throw MerryError(
           type: ErrorCode.scriptNotDefined,
           body: {'script': scriptString, 'suggestions': getPaths()},
         );
       }
 
       // for when script is not a type we want
-      if (scriptFound is! Map &&
-          scriptFound is! List &&
-          scriptFound is! String) {
-        throw DerryError(
+      if (scriptFound is! Map && scriptFound is! List && scriptFound is! String) {
+        throw MerryError(
           type: ErrorCode.invalidScript,
           body: {'script': scriptString},
         );
@@ -85,8 +83,7 @@ class ScriptsRegistry {
         final platformKey = currentPlatformKey;
         if (platformKey != null) {
           final platformScripts = scriptFound[platformKey];
-          if (platformScripts != null &&
-              (platformScripts is List || platformScripts is String)) {
+          if (platformScripts != null && (platformScripts is List || platformScripts is String)) {
             serializedDefinitions[scriptString] = Definition.from(
               platformScripts,
             );
@@ -95,21 +92,19 @@ class ScriptsRegistry {
         }
 
         final scripts = scriptFound[scriptsDefinitionKey];
-        final validity =
-            scripts != null && (scripts is List || scripts is String);
+        final validity = scripts != null && (scripts is List || scripts is String);
 
         if (!validity) {
           // check for (default) key to support default scripts in nested groups
           final defaultScript = scriptFound[defaultDefinitionKey];
-          if (defaultScript != null &&
-              (defaultScript is List || defaultScript is String)) {
+          if (defaultScript != null && (defaultScript is List || defaultScript is String)) {
             serializedDefinitions[scriptString] = Definition.from(
               defaultScript,
             );
             return serializedDefinitions[scriptString]!;
           }
 
-          throw DerryError(
+          throw MerryError(
             type: ErrorCode.invalidScript,
             body: {'script': scriptString, 'paths': getPaths()},
           );
@@ -157,9 +152,7 @@ class ScriptsRegistry {
         final jsonValue = value is JsonMap ? value : value.toJsonMap();
         final raw = jsonValue[aliasesDefinitionKey];
         if (raw != null) {
-          final aliasList = raw is List
-              ? raw.map((e) => e.toString()).toList()
-              : [raw.toString()];
+          final aliasList = raw is List ? raw.map((e) => e.toString()).toList() : [raw.toString()];
           for (final alias in aliasList) {
             final aliasPath = prefix.isEmpty ? alias : '$prefix $alias';
             result[aliasPath] = fullPath;
@@ -209,18 +202,24 @@ class ScriptsRegistry {
         );
       } else {
         // replace all \$ with $, they are not valid references
-        var normalizedScript = script.replaceAll('\\$referencePrefix', referencePrefix);
+        var normalizedScript = script.replaceAll(
+          '\\$referencePrefix',
+          referencePrefix,
+        );
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
-          final cdCmd = Platform.isWindows
-              ? 'cd /d "\${definition.workdir}" &&'
-              : 'cd "\${definition.workdir}" &&';
+          final cdCmd = Platform.isWindows ? 'cd /d "\${definition.workdir}" &&' : 'cd "\${definition.workdir}" &&';
           normalizedScript = '$cdCmd $normalizedScript';
         }
         // apply ${VAR} substitution using (variables) definitions and env
-        normalizedScript = substituteVariables(normalizedScript, getVariables());
+        normalizedScript = substituteVariables(
+          normalizedScript,
+          getVariables(),
+        );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(_joinStrings([positional.key, positional.value]));
+        exitCode = await bindings.runScript(
+          _joinStrings([positional.key, positional.value]),
+        );
       }
     }
 

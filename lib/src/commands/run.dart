@@ -5,7 +5,7 @@ import 'package:merry/src/utils/pubspec.dart';
 import 'package:merry/src/utils/scripts_registry.dart';
 import 'package:tint/tint.dart';
 
-/// The `derry run` command
+/// The `merry run` command
 /// which parses the arguments and execute the scripts in
 /// the executor using ffi.
 ///
@@ -30,10 +30,7 @@ class RunCommmand extends Command {
         'extra': args.sublist(start + 1).toList(),
       };
     } else {
-      return <String, List>{
-        'args': args,
-        'extra': [],
-      };
+      return <String, List>{'args': args, 'extra': []};
     }
   }
 

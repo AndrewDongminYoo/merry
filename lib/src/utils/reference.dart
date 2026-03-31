@@ -15,10 +15,7 @@ class Reference extends Equatable {
   final String extra;
 
   /// Constructs a constant [Reference] instance.
-  const Reference({
-    required this.script,
-    required this.extra,
-  });
+  const Reference({required this.script, required this.extra});
 
   /// Creates a [Reference] instance from a [String] input.
   /// The input string must start with a single character

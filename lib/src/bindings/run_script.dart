@@ -2,10 +2,10 @@ import 'dart:ffi' as ffi;
 import 'dart:isolate' show Isolate;
 
 import 'package:ffi/ffi.dart' show StringUtf8Pointer, Utf8;
-import 'package:merry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:path/path.dart' as path;
 
-const packageUri = 'package:merry/derry.dart';
+const packageUri = 'package:merry/merry.dart';
 const blobsPath = 'src/blobs/';
 
 /// Supported operating systems with architectures
@@ -24,7 +24,7 @@ String getBlobFilename() {
   final currentAbi = ffi.Abi.current();
 
   if (!supported.containsKey(currentAbi)) {
-    throw DerryError(
+    throw MerryError(
       type: ErrorCode.platformNotSupported,
       body: {'abi': currentAbi},
     );
@@ -35,9 +35,11 @@ String getBlobFilename() {
 
 /// Run a given input string in console in native code via dart ffi
 Future<int> runScript(String script) async {
-  final resolvedPackageUri = await Isolate.resolvePackageUri(Uri.parse(packageUri));
+  final resolvedPackageUri = await Isolate.resolvePackageUri(
+    Uri.parse(packageUri),
+  );
   if (resolvedPackageUri == null) {
-    throw DerryError(
+    throw MerryError(
       type: ErrorCode.invalidPackageUri,
       body: {'packageUri': packageUri},
     );
@@ -48,14 +50,16 @@ Future<int> runScript(String script) async {
   try {
     dylib = ffi.DynamicLibrary.open(objectFilePath);
   } catch (e) {
-    throw DerryError(
+    throw MerryError(
       type: ErrorCode.invalidBlob,
       body: {'path': objectFilePath, 'origin': e},
     );
   }
 
   final nativeRunScriptFn = dylib
-      .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>('run_script')
+      .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
+        'run_script',
+      )
       .asFunction<int Function(ffi.Pointer<Utf8>)>();
 
   return nativeRunScriptFn(script.toNativeUtf8());

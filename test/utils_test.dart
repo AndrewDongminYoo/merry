@@ -43,8 +43,8 @@ void main() {
 
   test("Info's toString should work", () {
     expect(
-      const Info(name: 'derry', version: '0.0.1').toString(),
-      equals('derry@0.0.1'),
+      const Info(name: 'merry', version: '0.0.1').toString(),
+      equals('merry@0.0.1'),
     );
   });
 
@@ -167,7 +167,7 @@ version: 0.0.0""";
         expect(Pubspec.source, equals(null));
         expect(
           pubspec.getSource(),
-          throwsA(equals(DerryError(type: ErrorCode.missingScripts))),
+          throwsA(equals(MerryError(type: ErrorCode.missingScripts))),
         );
 
         await Future.delayed(const Duration(seconds: 1));
@@ -176,7 +176,7 @@ version: 0.0.0""";
         Pubspec.content![scriptsKey] = 0;
         expect(
           pubspec.getSource(),
-          throwsA(equals(DerryError(type: ErrorCode.invalidScript))),
+          throwsA(equals(MerryError(type: ErrorCode.invalidScript))),
         );
 
         await Future.delayed(const Duration(seconds: 1));
@@ -189,9 +189,9 @@ version: 0.0.0""";
 
         // if scripts field is a string
         Pubspec.source = null;
-        Pubspec.content![scriptsKey] = "derry.yaml";
-        expect(await pubspec.getSource(), equals("derry.yaml"));
-        expect(Pubspec.source, "derry.yaml");
+        Pubspec.content![scriptsKey] = "merry.yaml";
+        expect(await pubspec.getSource(), equals("merry.yaml"));
+        expect(Pubspec.source, "merry.yaml");
 
         // getScripts
         expect(Pubspec.scripts, equals(null));
@@ -204,7 +204,7 @@ version: 0.0.0""";
 
         // if scripts field is a string aka a file path
         Pubspec.scripts = null;
-        Pubspec.source = "derry.yaml";
+        Pubspec.source = "merry.yaml";
 
         const mockScriptsFile = """
 a: b
@@ -235,14 +235,14 @@ c:
         readYamlMap('yaml'),
         throwsA(
           equals(
-            DerryError(type: ErrorCode.fileNotFound, body: {'path': 'yaml'}),
+            MerryError(type: ErrorCode.fileNotFound, body: {'path': 'yaml'}),
           ),
         ),
       );
     });
 
     test('read_yaml_map should fail when the file is not in yaml format', () {
-      expect(readYamlMap('README.md'), throwsA(isA<DerryError>()));
+      expect(readYamlMap('README.md'), throwsA(isA<MerryError>()));
     });
   });
 
@@ -412,7 +412,7 @@ c:
         () => registry.getDefinition("script_b"),
         throwsA(
           equals(
-            DerryError(
+            MerryError(
               type: ErrorCode.scriptNotDefined,
               body: {'script': "script_b", 'suggestions': registry.getPaths()},
             ),
@@ -426,7 +426,7 @@ c:
         () => registry.getDefinition("script_c"),
         throwsA(
           equals(
-            DerryError(
+            MerryError(
               type: ErrorCode.invalidScript,
               body: {'script': "script_c"},
             ),
@@ -442,7 +442,7 @@ c:
         () => registry.getDefinition("script_d"),
         throwsA(
           equals(
-            DerryError(
+            MerryError(
               type: ErrorCode.invalidScript,
               body: {'script': "script_d", 'paths': registry.getPaths()},
             ),
@@ -460,7 +460,7 @@ c:
         () => registry.getDefinition("script_e"),
         throwsA(
           equals(
-            DerryError(
+            MerryError(
               type: ErrorCode.invalidScript,
               body: {'script': "script_e", 'paths': registry.getPaths()},
             ),

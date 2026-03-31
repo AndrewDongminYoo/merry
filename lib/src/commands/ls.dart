@@ -15,7 +15,7 @@ String _getPrefix(int current, int len) {
   return current == len - 1 ? '└──' : '├──';
 }
 
-/// The `derry ls` command
+/// The `merry ls` command
 /// which will print a recursive tree representation of
 /// all the available scripts within the current config.
 ///
@@ -26,11 +26,11 @@ String _getPrefix(int current, int len) {
 class ListCommand extends Command {
   ListCommand() {
     super.argParser.addFlag(
-          'description',
-          abbr: 'd',
-          help: 'whether to show descriptions or not',
-          negatable: false,
-        );
+      'description',
+      abbr: 'd',
+      help: 'whether to show descriptions or not',
+      negatable: false,
+    );
   }
 
   @override
@@ -53,8 +53,11 @@ class ListCommand extends Command {
 
     final definitions = paths.map((path) => registry.getDefinition(path)).toList();
     final descriptions = definitions.map((def) => def.description).toList();
-    final references =
-        definitions.map((def) => def.scripts.where((s) => s.startsWith(referencePrefix)).toList()).toList();
+    final references = definitions
+        .map(
+          (def) => def.scripts.where((s) => s.startsWith(referencePrefix)).toList(),
+        )
+        .toList();
 
     final buffer = StringBuffer();
 
@@ -74,7 +77,9 @@ class ListCommand extends Command {
           ? '${''.padLeft(longestScriptLength + 4 - path.length)} - $description'.gray()
           : '';
 
-      buffer.writeln('${_getPrefix(pathIndex, paths.length)} $path $formattedDescription');
+      buffer.writeln(
+        '${_getPrefix(pathIndex, paths.length)} $path $formattedDescription',
+      );
 
       for (final refEntry in refs.asMap().entries) {
         final referenceIndex = refEntry.key;

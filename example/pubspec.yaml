@@ -1,13 +1,13 @@
 name: example
 version: 0.0.1
-description: An example for derry.
+description: An example for merry.
 
 environment:
   sdk: ">=3.10.4 <4.0.0"
 
 dev_dependencies:
   build_runner: ^2.13.1
-  derry:
+  merry:
     path: ../
 
-scripts: derry.yaml
+scripts: merry.yaml

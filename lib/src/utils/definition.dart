@@ -44,7 +44,7 @@ List<String> _toStringList(dynamic input) {
 /// A typical script definition.
 ///
 /// [description] - is a short descriptive message about
-/// the script which will be shown when you use `derry ls -d`.
+/// the script which will be shown when you use `merry ls -d`.
 ///
 /// [scripts] - is a list of commands/scripts to execute.
 ///
@@ -62,7 +62,7 @@ class Definition extends Equatable {
   /// Optional working directory for script execution.
   final String? workdir;
 
-  /// Constructs a constant [Defintion] instance.
+  /// Constructs a constant [Definition] instance.
   const Definition({this.description, required this.scripts, this.workdir});
 
   /// Creates a [Definition] instance from a [dynamic] input.

@@ -1,17 +1,15 @@
 import 'dart:io' show stderr;
 
-import 'package:merry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:string_similarity/string_similarity.dart';
 import 'package:tint/tint.dart';
 
 /// Handles errors based on [ErrorCode].
-void handleError(DerryError e) {
+void handleError(MerryError e) {
   final buffer = StringBuffer();
-  final prefix = 'derry ${"ERR!".red()}';
+  final prefix = 'merry ${"ERR!".red()}';
 
-  buffer.writeln(
-    '$prefix Code ${e.type.name.cyan()}',
-  );
+  buffer.writeln('$prefix Code ${e.type.name.cyan()}');
 
   switch (e.type) {
     case ErrorCode.scriptNotDefined:
@@ -20,7 +18,10 @@ void handleError(DerryError e) {
 
       buffer.writeln('$prefix Unable to find script named "$scriptRun".');
 
-      final bestMatch = StringSimilarity.findBestMatch(scriptRun, suggestions).bestMatch;
+      final bestMatch = StringSimilarity.findBestMatch(
+        scriptRun,
+        suggestions,
+      ).bestMatch;
       if (bestMatch.rating != null && bestMatch.rating! >= 0.5) {
         buffer.writeln();
         buffer.writeln('$prefix Did you mean to run this?');
@@ -35,7 +36,10 @@ void handleError(DerryError e) {
       if (nestedScripts.isNotEmpty) {
         buffer.writeln('$prefix Script "$scriptRun" is a nested script.');
 
-        final bestMatch = StringSimilarity.findBestMatch(scriptRun, nestedScripts).bestMatch;
+        final bestMatch = StringSimilarity.findBestMatch(
+          scriptRun,
+          nestedScripts,
+        ).bestMatch;
         if (bestMatch.rating != null && bestMatch.rating! >= 0.5) {
           buffer.writeln();
           buffer.writeln('$prefix Did you mean to run this?');
@@ -46,7 +50,9 @@ void handleError(DerryError e) {
       }
 
     case ErrorCode.missingScripts:
-      buffer.writeln('$prefix Field `scripts` is not defined in `pubspec.yaml`.');
+      buffer.writeln(
+        '$prefix Field `scripts` is not defined in `pubspec.yaml`.',
+      );
 
     case ErrorCode.invalidScripts:
       buffer.writeln('$prefix Type of field `scripts` is invalid.');

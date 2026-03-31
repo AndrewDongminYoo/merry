@@ -1,4 +1,4 @@
-/// Types of error that can/will be handled by derry.
+/// Types of error that can/will be handled by merry.
 enum ErrorCode {
   /// throw when a script is not defined
   scriptNotDefined,

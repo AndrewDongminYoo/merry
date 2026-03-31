@@ -1,8 +1,7 @@
 import 'dart:io';
 
-import 'package:merry/error.dart' show DerryError, ErrorCode;
-import 'package:merry/utils.dart'
-    show Info, JsonMap, ToJsonMapExtension, readYamlMap;
+import 'package:merry/error.dart' show ErrorCode, MerryError;
+import 'package:merry/utils.dart' show Info, JsonMap, ToJsonMapExtension, readYamlMap;
 import 'package:path/path.dart' as path;
 
 const String pubspecFileName = 'pubspec.yaml';
@@ -13,7 +12,10 @@ const String scriptsKey = 'scripts';
 /// for .
 class Pubspec {
   /// File path of `pubspec.yaml` in current directory.
-  static final String filePath = path.join(Directory.current.path, pubspecFileName);
+  static final String filePath = path.join(
+    Directory.current.path,
+    pubspecFileName,
+  );
 
   /// Text content of `pubspec.yaml` once it has been read,
   /// used as a mean of memoization.
@@ -53,7 +55,7 @@ class Pubspec {
     final scripts = content[scriptsKey];
 
     if (scripts == null) {
-      throw DerryError(type: ErrorCode.missingScripts);
+      throw MerryError(type: ErrorCode.missingScripts);
     }
 
     if (scripts is Map) {
@@ -61,7 +63,7 @@ class Pubspec {
     } else if (scripts is String) {
       return scripts;
     } else {
-      throw DerryError(type: ErrorCode.invalidScripts);
+      throw MerryError(type: ErrorCode.invalidScripts);
     }
   }
 

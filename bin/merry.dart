@@ -6,12 +6,12 @@ import 'package:merry/error.dart';
 import 'package:merry/version.dart';
 
 Future<void> main(List<String> arguments) async {
-  final exitCode = await runDerry(arguments);
+  final exitCode = await runMerry(arguments);
   exit(exitCode);
 }
 
-Future<int> runDerry(List<String> arguments) async {
-  final runner = CommandRunner('derry', 'A script runner/manager for dart.');
+Future<int> runMerry(List<String> arguments) async {
+  final runner = CommandRunner('merry', 'A script runner/manager for dart.');
 
   runner
     ..addCommand(RunCommmand())
@@ -28,19 +28,20 @@ Future<int> runDerry(List<String> arguments) async {
   final argResults = runner.parse(arguments);
 
   if (argResults['version'] as bool) {
-    stdout.writeln('derry version: $packageVersion');
+    stdout.writeln('merry version: $packageVersion');
     return 0;
   } else {
     try {
       final exitCode = await runner.run(arguments);
       return exitCode as int? ?? 0;
       // ignore: avoid_catching_errors
-    } on DerryError catch (error) {
+    } on MerryError catch (error) {
       handleError(error);
       return 1;
     } catch (exception) {
-      if (exception is UsageException && exception.message.startsWith('Could not find a command named')) {
-        final exitCode = runDerry(['run', ...arguments]);
+      if (exception is UsageException &&
+          exception.message.startsWith('Could not find a command named')) {
+        final exitCode = runMerry(['run', ...arguments]);
         return exitCode;
       } else {
         stderr.writeln(exception);

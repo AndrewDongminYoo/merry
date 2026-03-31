@@ -5,7 +5,9 @@ extension ToJsonMapExtension on Map {
   /// Takes a `Map` and returns a `JsonMap`
   JsonMap toJsonMap() {
     final self = this;
-    return self.map((key, value) => MapEntry(key.toString(), value is Map ? value.toJsonMap() : value));
+    return self.map(
+      (key, value) => MapEntry(key.toString(), value is Map ? value.toJsonMap() : value),
+    );
   }
 }
 

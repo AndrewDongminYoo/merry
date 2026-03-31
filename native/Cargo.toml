@@ -1,5 +1,5 @@
 [package]
-name = "derry"
+name = "merry"
 version = "0.1.0"
 authors = ["Frenco <hey@frenco.dev>"]
 edition = "2021"
@@ -12,7 +12,7 @@ codegen-units = 1
 panic = "abort"
 
 [lib]
-name = "derry"
+name = "merry"
 crate-type = ["cdylib"]
 
 [dependencies]

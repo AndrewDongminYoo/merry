@@ -23,11 +23,7 @@ Map<String, String> collectVariables(JsonMap map) {
 
     final value = map[key];
     if (value is Map) {
-      final nested = value
-          .map(
-            (k, v) => MapEntry(k.toString(), v),
-          )
-          .cast<String, dynamic>();
+      final nested = value.map((k, v) => MapEntry(k.toString(), v)).cast<String, dynamic>();
       result.addAll(collectVariables(nested));
     }
   }
