@@ -98,7 +98,7 @@ class ScriptsRegistry {
     final preScript = lookup('pre$script');
     if (preScript != null) await _runScript('pre$script');
 
-    final exitCode = _runScript(script, extra: extra);
+    final exitCode = await _runScript(script, extra: extra);
 
     final postScript = lookup('post$script');
     if (postScript != null) await _runScript('post$script');
