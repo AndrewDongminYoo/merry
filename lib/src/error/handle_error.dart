@@ -26,7 +26,6 @@ void handleError(DerryError e) {
         buffer.writeln('$prefix Did you mean to run this?');
         buffer.writeln('$prefix    ${bestMatch.target}');
       }
-      break;
 
     case ErrorCode.invalidScript:
       final scriptRun = e.body['script'] as String;
@@ -45,21 +44,17 @@ void handleError(DerryError e) {
       } else {
         buffer.writeln('$prefix Script definition of "$scriptRun" is invalid.');
       }
-      break;
 
     case ErrorCode.missingScripts:
       buffer.writeln('$prefix Field `scripts` is not defined in `pubspec.yaml`.');
-      break;
 
     case ErrorCode.invalidScripts:
       buffer.writeln('$prefix Type of field `scripts` is invalid.');
       buffer.writeln('$prefix It should be a map of scripts or a file path.');
-      break;
 
     case ErrorCode.fileNotFound:
       final filePath = e.body['path'] as String;
       buffer.writeln('$prefix File not found at "$filePath".');
-      break;
 
     case ErrorCode.invalidYaml:
       final filePath = e.body['path'] as String;
@@ -67,25 +62,21 @@ void handleError(DerryError e) {
 
       buffer.writeln('$prefix Incorrect YAML format in "$filePath".');
       buffer.writeln('$prefix Origin $origin');
-      break;
 
     case ErrorCode.invalidYamlMap:
       final filePath = e.body['path'] as String;
       buffer.writeln('$prefix YAML is not a map in "$filePath".');
-      break;
 
     case ErrorCode.platformNotSupported:
       final abi = e.body['abi'] as String?;
 
       buffer.writeln('$prefix Unsupported plaform.');
       buffer.writeln('$prefix Architecture "$abi" is not supported.');
-      break;
 
     case ErrorCode.invalidPackageUri:
       final packageUri = e.body['packageUri'] as String;
 
       buffer.writeln('$prefix Unable to resolve package URI "$packageUri".');
-      break;
 
     case ErrorCode.invalidBlob:
       final path = e.body['path'] as String;
@@ -93,7 +84,6 @@ void handleError(DerryError e) {
 
       buffer.writeln('$prefix Unable to load dynamic library blob at "$path".');
       buffer.writeln('$prefix Origin $origin');
-      break;
   }
 
   stderr.write(buffer.toString());
