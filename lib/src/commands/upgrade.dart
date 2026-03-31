@@ -1,8 +1,8 @@
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
-import 'package:derry/utils.dart';
-import 'package:derry/version.dart';
+import 'package:merry/utils.dart';
+import 'package:merry/version.dart';
 import 'package:tint/tint.dart';
 
 /// The `derry upgrade` command

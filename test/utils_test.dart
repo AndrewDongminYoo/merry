@@ -1,7 +1,7 @@
 import 'dart:io' show Directory, File, IOOverrides, Platform;
 
-import 'package:derry/error.dart';
-import 'package:derry/utils.dart';
+import 'package:merry/error.dart';
+import 'package:merry/utils.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;

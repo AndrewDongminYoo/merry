@@ -1,10 +1,10 @@
 import 'dart:io' show Platform;
 
-import 'package:derry/bindings.dart' as bindings;
-import 'package:derry/error.dart' show DerryError, ErrorCode;
-import 'package:derry/src/utils/json_map.dart';
-import 'package:derry/src/utils/positional_args.dart' show applyPositionalArgs;
-import 'package:derry/utils.dart'
+import 'package:merry/bindings.dart' as bindings;
+import 'package:merry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/src/utils/json_map.dart';
+import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
+import 'package:merry/utils.dart'
     show
         Definition,
         JsonMap,

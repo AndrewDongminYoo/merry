@@ -1,6 +1,6 @@
 import 'dart:io' show stderr;
 
-import 'package:derry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show DerryError, ErrorCode;
 import 'package:string_similarity/string_similarity.dart';
 import 'package:tint/tint.dart';
 

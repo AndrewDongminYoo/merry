@@ -1,6 +1,6 @@
 import 'dart:io' show Directory, File;
 
-import 'package:derry/error.dart' show DerryError, ErrorCode;
+import 'package:merry/error.dart' show DerryError, ErrorCode;
 import 'package:path/path.dart' as path;
 import 'package:yaml/yaml.dart' show YamlDocument, YamlMap, loadYamlDocument;
 

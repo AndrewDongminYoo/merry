@@ -1,7 +1,7 @@
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
-import 'package:derry/utils.dart';
+import 'package:merry/utils.dart';
 import 'package:path/path.dart' as path;
 
 /// Gets the absolute path of a file.

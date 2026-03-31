@@ -1,9 +1,9 @@
 import 'dart:io';
 
 import 'package:args/command_runner.dart';
-import 'package:derry/commands.dart';
-import 'package:derry/error.dart';
-import 'package:derry/version.dart';
+import 'package:merry/commands.dart';
+import 'package:merry/error.dart';
+import 'package:merry/version.dart';
 
 Future<void> main(List<String> arguments) async {
   final exitCode = await runDerry(arguments);

@@ -1,8 +1,8 @@
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
-import 'package:derry/src/utils/pubspec.dart';
-import 'package:derry/src/utils/scripts_registry.dart';
+import 'package:merry/src/utils/pubspec.dart';
+import 'package:merry/src/utils/scripts_registry.dart';
 import 'package:tint/tint.dart';
 
 /// The `derry run` command

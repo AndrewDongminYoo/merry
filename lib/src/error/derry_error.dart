@@ -1,5 +1,5 @@
-import 'package:derry/src/error/error_code.dart' show ErrorCode;
 import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:merry/src/error/error_code.dart' show ErrorCode;
 
 /// A custom error type used to catch custom errors
 /// with the type [ErrorCode].

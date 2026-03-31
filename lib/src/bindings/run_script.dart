@@ -1,11 +1,11 @@
 import 'dart:ffi' as ffi;
 import 'dart:isolate' show Isolate;
 
-import 'package:derry/error.dart' show DerryError, ErrorCode;
 import 'package:ffi/ffi.dart' show StringUtf8Pointer, Utf8;
+import 'package:merry/error.dart' show DerryError, ErrorCode;
 import 'package:path/path.dart' as path;
 
-const packageUri = 'package:derry/derry.dart';
+const packageUri = 'package:merry/derry.dart';
 const blobsPath = 'src/blobs/';
 
 /// Supported operating systems with architectures

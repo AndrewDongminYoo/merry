@@ -1,6 +1,6 @@
 import 'dart:io' show Platform;
 
-import 'package:derry/utils.dart' show JsonMap, variablesDefinitionKey;
+import 'package:merry/utils.dart' show JsonMap, variablesDefinitionKey;
 
 /// Collects all variable definitions from [map] by scanning for `(variables)`
 /// sections at every nesting level. Later definitions override earlier ones.
