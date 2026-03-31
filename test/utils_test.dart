@@ -130,7 +130,6 @@ void main() {
         final pubspec = Pubspec();
 
         // filePath
-<<<<<<< HEAD
         when(
           mockCurrentDirectory.uri,
         ).thenReturn(Uri.file("current-directory-path"));
@@ -139,13 +138,6 @@ void main() {
           Pubspec.filePath,
           equals(path.join("current-directory-path", pubspecFileName)),
         );
-=======
-        when(mockCurrentDirectory.uri)
-            .thenReturn(Uri.file("current-directory-path"));
-        when(mockCurrentDirectory.path).thenReturn("current-directory-path");
-        expect(Pubspec.filePath,
-            equals(path.join("current-directory-path", pubspecFileName)));
->>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         // content
         const mockPubspecContent = """
@@ -153,14 +145,9 @@ name: test
 version: 0.0.0""";
         const mockPubspecMap = {"name": "test", "version": "0.0.0"};
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
-<<<<<<< HEAD
         when(
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockPubspecContent));
-=======
-        when(mockFile.readAsString())
-            .thenAnswer((_) => Future.value(mockPubspecContent));
->>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         expect(Pubspec.content, equals(null));
         expect(await pubspec.getContent(), equals(mockPubspecMap));
@@ -221,7 +208,7 @@ version: 0.0.0""";
 
         const mockScriptsFile = """
 a: b
-c: 
+c:
   - d
   - e""";
         final mockScriptsMap = {
@@ -229,14 +216,9 @@ c:
           "c": ["d", "e"],
         };
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
-<<<<<<< HEAD
         when(
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockScriptsFile));
-=======
-        when(mockFile.readAsString())
-            .thenAnswer((_) => Future.value(mockScriptsFile));
->>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         expect(await pubspec.getScripts(), equals(mockScriptsMap));
         expect(Pubspec.scripts, equals(mockScriptsMap));
@@ -293,6 +275,68 @@ c:
       final result = applyPositionalArgs('echo \$1', '');
       expect(result.key, equals('echo '));
       expect(result.value, equals(''));
+    });
+  });
+
+  group('collectVariables', () {
+    test('collects top-level (variables)', () {
+      expect(
+        collectVariables({
+          variablesDefinitionKey: {'OUTPUT': 'build', 'MODE': 'release'},
+          'build': 'dart build',
+        }),
+        equals({'OUTPUT': 'build', 'MODE': 'release'}),
+      );
+    });
+
+    test('collects nested (variables)', () {
+      expect(
+        collectVariables({
+          'group': {
+            variablesDefinitionKey: {'DIR': 'packages/ui'},
+            scriptsDefinitionKey: 'echo done',
+          },
+        }),
+        equals({'DIR': 'packages/ui'}),
+      );
+    });
+
+    test('later definitions override earlier ones', () {
+      expect(
+        collectVariables({
+          variablesDefinitionKey: {'X': 'top'},
+          'group': {
+            variablesDefinitionKey: {'X': 'nested'},
+            scriptsDefinitionKey: 'echo hi',
+          },
+        }),
+        equals({'X': 'nested'}),
+      );
+    });
+  });
+
+  group('substituteVariables', () {
+    test('replaces \${VAR} with value from map', () {
+      expect(
+        substituteVariables('dart build --output \${OUTPUT}', {
+          'OUTPUT': 'build',
+        }),
+        equals('dart build --output build'),
+      );
+    });
+
+    test('leaves unknown \${VAR} unchanged when not in env', () {
+      expect(
+        substituteVariables('echo \${UNKNOWN_VAR_XYZ}', {}),
+        equals('echo \${UNKNOWN_VAR_XYZ}'),
+      );
+    });
+
+    test('map value takes precedence over environment', () {
+      expect(
+        substituteVariables('echo \${PATH}', {'PATH': 'overridden'}),
+        equals('echo overridden'),
+      );
     });
   });
 
@@ -422,28 +466,15 @@ c:
       ScriptsRegistry.scripts = {
         "group": {defaultDefinitionKey: "echo default", "sub": "echo sub"},
       };
-      ScriptsRegistry.serializedDefinitions.remove("group"); // clear cache
+      ScriptsRegistry.serializedDefinitions.remove("group");
       expect(
         registry.getDefinition("group"),
         equals(Definition.from("echo default")),
       );
-      ScriptsRegistry.scripts = sampleScriptsMap; // reset
+      ScriptsRegistry.scripts = sampleScriptsMap;
       ScriptsRegistry.serializedDefinitions.remove("group");
     });
 
-    test("getReference memoization works", () {
-      expect(ScriptsRegistry.references, equals({}));
-      expect(
-        registry.getReference("\$script_a"),
-        equals(Reference.from("\$script_a")),
-      );
-      expect(
-        ScriptsRegistry.references["\$script_a"],
-        equals(Reference.from("\$script_a")),
-      );
-    });
-
-<<<<<<< HEAD
     test("getDefinition selects platform-specific script", () {
       final platformKey = Platform.isLinux
           ? linuxDefinitionKey
@@ -464,22 +495,32 @@ c:
         equals(Definition.from("echo platform")),
       );
 
-      ScriptsRegistry.scripts = sampleScriptsMap; // reset
+      ScriptsRegistry.scripts = sampleScriptsMap;
       ScriptsRegistry.serializedDefinitions.remove("script_p");
-=======
+    });
+
+    test("getReference memoization works", () {
+      expect(ScriptsRegistry.references, equals({}));
+      expect(
+        registry.getReference("\$script_a"),
+        equals(Reference.from("\$script_a")),
+      );
+      expect(
+        ScriptsRegistry.references["\$script_a"],
+        equals(Reference.from("\$script_a")),
+      );
+    });
+
     test("getAliasMap collects top-level aliases", () {
       ScriptsRegistry.scripts = {
         "install": {
           aliasesDefinitionKey: ["i", "in"],
           scriptsDefinitionKey: "dart pub get",
-        }
+        },
       };
-      ScriptsRegistry.aliasMap = null; // clear cache
+      ScriptsRegistry.aliasMap = null;
 
-      expect(
-        registry.getAliasMap(),
-        equals({"i": "install", "in": "install"}),
-      );
+      expect(registry.getAliasMap(), equals({"i": "install", "in": "install"}));
 
       ScriptsRegistry.scripts = sampleScriptsMap;
       ScriptsRegistry.aliasMap = null;
@@ -491,8 +532,8 @@ c:
           "linux": {
             aliasesDefinitionKey: "lin",
             scriptsDefinitionKey: "echo linux",
-          }
-        }
+          },
+        },
       };
       ScriptsRegistry.aliasMap = null;
 
@@ -510,7 +551,7 @@ c:
         "install": {
           aliasesDefinitionKey: "i",
           scriptsDefinitionKey: "dart pub get",
-        }
+        },
       };
       ScriptsRegistry.aliasMap = null;
 
@@ -518,7 +559,6 @@ c:
 
       ScriptsRegistry.scripts = sampleScriptsMap;
       ScriptsRegistry.aliasMap = null;
->>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
     });
 
     // todo: to add tests for runScript

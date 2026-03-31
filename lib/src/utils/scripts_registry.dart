@@ -11,10 +11,12 @@ import 'package:derry/utils.dart'
         JsonMapExtension,
         Reference,
         aliasesDefinitionKey,
+        collectVariables,
         currentPlatformKey,
         defaultDefinitionKey,
         referencePrefix,
-        scriptsDefinitionKey;
+        scriptsDefinitionKey,
+        substituteVariables;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
@@ -124,6 +126,14 @@ class ScriptsRegistry {
   /// used as a mean of memoization.
   static Map<String, Reference> references = {};
 
+  /// Lazily-collected variable map from all `(variables)` sections.
+  static Map<String, String>? variables;
+
+  /// Returns the collected variable map, building it lazily on first call.
+  Map<String, String> getVariables() {
+    return variables ??= collectVariables(scripts!);
+  }
+
   /// Compute [Reference] parts from a script string.
   Reference getReference(String scriptString) {
     return references[scriptString] ??= Reference.from(scriptString);
@@ -199,21 +209,18 @@ class ScriptsRegistry {
         );
       } else {
         // replace all \$ with $, they are not valid references
-        var normalizedScript = script.replaceAll(
-          '\\$referencePrefix',
-          referencePrefix,
-        );
+        var normalizedScript = script.replaceAll('\\$referencePrefix', referencePrefix);
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
           final cdCmd = Platform.isWindows
-              ? 'cd /d "${definition.workdir}" &&'
-              : 'cd "${definition.workdir}" &&';
+              ? 'cd /d "\${definition.workdir}" &&'
+              : 'cd "\${definition.workdir}" &&';
           normalizedScript = '$cdCmd $normalizedScript';
         }
+        // apply ${VAR} substitution using (variables) definitions and env
+        normalizedScript = substituteVariables(normalizedScript, getVariables());
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
-          _joinStrings([positional.key, positional.value]),
-        );
+        exitCode = await bindings.runScript(_joinStrings([positional.key, positional.value]));
       }
     }
 

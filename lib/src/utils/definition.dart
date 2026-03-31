@@ -17,6 +17,9 @@ const String workdirDefinitionKey = '(workdir)';
 /// Key used to define aliases for a script.
 const String aliasesDefinitionKey = '(aliases)';
 
+/// Key used to define reusable variables for script interpolation.
+const String variablesDefinitionKey = '(variables)';
+
 /// Platform-specific script keys.
 const String linuxDefinitionKey = '(linux)';
 const String macosDefinitionKey = '(macos)';
