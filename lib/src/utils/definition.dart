@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:equatable/equatable.dart';
 
 /// Key used to define script description.
@@ -11,6 +13,19 @@ const String defaultDefinitionKey = '(default)';
 
 /// Key used to set the working directory for a script.
 const String workdirDefinitionKey = '(workdir)';
+
+/// Platform-specific script keys.
+const String linuxDefinitionKey = '(linux)';
+const String macosDefinitionKey = '(macos)';
+const String windowsDefinitionKey = '(windows)';
+
+/// Returns the metadata key for the current OS, or `null` on unsupported platforms.
+String? get currentPlatformKey {
+  if (Platform.isLinux) return linuxDefinitionKey;
+  if (Platform.isMacOS) return macosDefinitionKey;
+  if (Platform.isWindows) return windowsDefinitionKey;
+  return null;
+}
 
 /// Parses a list from yaml input.
 ///
@@ -42,11 +57,7 @@ class Definition extends Equatable {
   final String? workdir;
 
   /// Constructs a constant [Defintion] instance.
-  const Definition({
-    this.description,
-    required this.scripts,
-    this.workdir,
-  });
+  const Definition({this.description, required this.scripts, this.workdir});
 
   /// Creates a [Definition] instance from a [dynamic] input.
   /// The input can be a [Map], [List] or [String].

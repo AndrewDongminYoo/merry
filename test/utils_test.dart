@@ -1,4 +1,4 @@
-import 'dart:io' show Directory, File, IOOverrides;
+import 'dart:io' show Directory, File, IOOverrides, Platform;
 
 import 'package:derry/error.dart';
 import 'package:derry/utils.dart';
@@ -36,16 +36,8 @@ void main() {
     );
 
     expect(
-      Definition.from(const {
-        '(scripts)': 'echo 0',
-        '(workdir)': '/tmp',
-      }),
-      equals(
-        const Definition(
-          scripts: ['echo 0'],
-          workdir: '/tmp',
-        ),
-      ),
+      Definition.from(const {'(scripts)': 'echo 0', '(workdir)': '/tmp'}),
+      equals(const Definition(scripts: ['echo 0'], workdir: '/tmp')),
     );
   });
 
@@ -58,45 +50,30 @@ void main() {
 
   group("JsonMap's lookup function", () {
     final jsonmap = {
-      'foo': {'bar': 'baz'}
+      'foo': {'bar': 'baz'},
     };
 
     test('lookup should return the correct value for a valid path', () {
-      expect(
-        jsonmap.lookup('foo bar'),
-        equals('baz'),
-      );
+      expect(jsonmap.lookup('foo bar'), equals('baz'));
     });
 
     test('lookup should return null for an invalid path', () {
-      expect(
-        jsonmap.lookup('foo baz'),
-        isNull,
-      );
+      expect(jsonmap.lookup('foo baz'), isNull);
     });
 
     test('lookup should also be able to return maps', () {
-      expect(
-        jsonmap.lookup('foo'),
-        equals({'bar': 'baz'}),
-      );
+      expect(jsonmap.lookup('foo'), equals({'bar': 'baz'}));
     });
   });
 
   group("JsonMap's getPaths function", () {
     test('getPaths should return all valid paths with string scripts', () {
       final jsonmap = {
-        'foo': {
-          'bar': 'baz',
-          'baz': 'bar',
-        },
+        'foo': {'bar': 'baz', 'baz': 'bar'},
         'bar': 'foo',
       };
 
-      expect(
-        jsonmap.getPaths(),
-        equals(['foo bar', 'foo baz', 'bar']),
-      );
+      expect(jsonmap.getPaths(), equals(['foo bar', 'foo baz', 'bar']));
     });
 
     test('getPaths should return all valid paths with array of scripts', () {
@@ -119,10 +96,7 @@ void main() {
       final jsonmap = {
         'foo': {
           'bar': {
-            'baz': {
-              'bar': 'foo',
-              'baz': [],
-            },
+            'baz': {'bar': 'foo', 'baz': []},
           },
         },
         'bar': 'foo',
@@ -136,17 +110,11 @@ void main() {
 
     test('getPaths should ignore keys with parenthesis', () {
       final jsonmap = {
-        'foo': {
-          '(bar)': 'baz',
-          '(baz)': 'bar',
-        },
+        'foo': {'(bar)': 'baz', '(baz)': 'bar'},
         'bar': 'foo',
       };
 
-      expect(
-        jsonmap.getPaths(),
-        equals(['foo', 'bar']),
-      );
+      expect(jsonmap.getPaths(), equals(['foo', 'bar']));
     });
   });
 
@@ -162,9 +130,14 @@ void main() {
         final pubspec = Pubspec();
 
         // filePath
-        when(mockCurrentDirectory.uri).thenReturn(Uri.file("current-directory-path"));
+        when(
+          mockCurrentDirectory.uri,
+        ).thenReturn(Uri.file("current-directory-path"));
         when(mockCurrentDirectory.path).thenReturn("current-directory-path");
-        expect(Pubspec.filePath, equals(path.join("current-directory-path", pubspecFileName)));
+        expect(
+          Pubspec.filePath,
+          equals(path.join("current-directory-path", pubspecFileName)),
+        );
 
         // content
         const mockPubspecContent = """
@@ -172,13 +145,12 @@ name: test
 version: 0.0.0""";
         const mockPubspecMap = {"name": "test", "version": "0.0.0"};
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
-        when(mockFile.readAsString()).thenAnswer((_) => Future.value(mockPubspecContent));
+        when(
+          mockFile.readAsString(),
+        ).thenAnswer((_) => Future.value(mockPubspecContent));
 
         expect(Pubspec.content, equals(null));
-        expect(
-          await pubspec.getContent(),
-          equals(mockPubspecMap),
-        );
+        expect(await pubspec.getContent(), equals(mockPubspecMap));
         expect(Pubspec.content, mockPubspecMap);
 
         // getInfo
@@ -212,19 +184,13 @@ version: 0.0.0""";
         // if scripts field is a Map
         expect(Pubspec.source, equals(null));
         Pubspec.content![scriptsKey] = {};
-        expect(
-          await pubspec.getSource(),
-          equals(pubspecFileName),
-        );
+        expect(await pubspec.getSource(), equals(pubspecFileName));
         expect(Pubspec.source, pubspecFileName);
 
         // if scripts field is a string
         Pubspec.source = null;
         Pubspec.content![scriptsKey] = "derry.yaml";
-        expect(
-          await pubspec.getSource(),
-          equals("derry.yaml"),
-        );
+        expect(await pubspec.getSource(), equals("derry.yaml"));
         expect(Pubspec.source, "derry.yaml");
 
         // getScripts
@@ -247,10 +213,12 @@ c:
   - e""";
         final mockScriptsMap = {
           "a": "b",
-          "c": ["d", "e"]
+          "c": ["d", "e"],
         };
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
-        when(mockFile.readAsString()).thenAnswer((_) => Future.value(mockScriptsFile));
+        when(
+          mockFile.readAsString(),
+        ).thenAnswer((_) => Future.value(mockScriptsFile));
 
         expect(await pubspec.getScripts(), equals(mockScriptsMap));
         expect(Pubspec.scripts, equals(mockScriptsMap));
@@ -267,20 +235,14 @@ c:
         readYamlMap('yaml'),
         throwsA(
           equals(
-            DerryError(
-              type: ErrorCode.fileNotFound,
-              body: {'path': 'yaml'},
-            ),
+            DerryError(type: ErrorCode.fileNotFound, body: {'path': 'yaml'}),
           ),
         ),
       );
     });
 
     test('read_yaml_map should fail when the file is not in yaml format', () {
-      expect(
-        readYamlMap('README.md'),
-        throwsA(isA<DerryError>()),
-      );
+      expect(readYamlMap('README.md'), throwsA(isA<DerryError>()));
     });
   });
 
@@ -319,23 +281,17 @@ c:
   test("Reference's from factory should work", () {
     expect(
       Reference.from("\$script_a"),
-      equals(
-        const Reference(script: "script_a", extra: ""),
-      ),
+      equals(const Reference(script: "script_a", extra: "")),
     );
 
     expect(
       Reference.from("\$script_a --extra extra"),
-      equals(
-        const Reference(script: "script_a", extra: "--extra extra"),
-      ),
+      equals(const Reference(script: "script_a", extra: "--extra extra")),
     );
 
     expect(
       Reference.from("\$script_a:script_b"),
-      equals(
-        const Reference(script: "script_a script_b", extra: ""),
-      ),
+      equals(const Reference(script: "script_a script_b", extra: "")),
     );
     expect(
       Reference.from("\$script_a:script_b --extra extra"),
@@ -349,14 +305,11 @@ c:
     late ScriptsRegistry registry;
     final sampleScriptsMap = {"script_a": "a"};
 
-    test(
-      "constructor works",
-      () {
-        expect(ScriptsRegistry.scripts, equals(null));
-        registry = ScriptsRegistry(sampleScriptsMap);
-        expect(ScriptsRegistry.scripts, equals(sampleScriptsMap));
-      },
-    );
+    test("constructor works", () {
+      expect(ScriptsRegistry.scripts, equals(null));
+      registry = ScriptsRegistry(sampleScriptsMap);
+      expect(ScriptsRegistry.scripts, equals(sampleScriptsMap));
+    });
 
     test("getPaths memoization works", () {
       expect(ScriptsRegistry.paths, equals(null));
@@ -374,9 +327,7 @@ c:
       expect(ScriptsRegistry.serializedDefinitions, equals({}));
       expect(
         registry.getDefinition("script_a"),
-        equals(
-          Definition.from(sampleScriptsMap["script_a"]),
-        ),
+        equals(Definition.from(sampleScriptsMap["script_a"])),
       );
       expect(
         ScriptsRegistry.serializedDefinitions["script_a"],
@@ -431,8 +382,8 @@ c:
       // when (scripts) is not a List or String
       ScriptsRegistry.scripts = {
         "script_e": {
-          [scriptsDefinitionKey]: 0
-        }
+          [scriptsDefinitionKey]: 0,
+        },
       }; // force update for test
       expect(
         () => registry.getDefinition("script_e"),
@@ -451,10 +402,7 @@ c:
 
     test("getDefinition uses (default) for nested command groups", () {
       ScriptsRegistry.scripts = {
-        "group": {
-          defaultDefinitionKey: "echo default",
-          "sub": "echo sub",
-        }
+        "group": {defaultDefinitionKey: "echo default", "sub": "echo sub"},
       };
       ScriptsRegistry.serializedDefinitions.remove("group"); // clear cache
       expect(
@@ -475,6 +423,30 @@ c:
         ScriptsRegistry.references["\$script_a"],
         equals(Reference.from("\$script_a")),
       );
+    });
+
+    test("getDefinition selects platform-specific script", () {
+      final platformKey = Platform.isLinux
+          ? linuxDefinitionKey
+          : Platform.isMacOS
+          ? macosDefinitionKey
+          : windowsDefinitionKey;
+
+      ScriptsRegistry.scripts = {
+        "script_p": {
+          platformKey: "echo platform",
+          scriptsDefinitionKey: "echo fallback",
+        },
+      };
+      ScriptsRegistry.serializedDefinitions.remove("script_p");
+
+      expect(
+        registry.getDefinition("script_p"),
+        equals(Definition.from("echo platform")),
+      );
+
+      ScriptsRegistry.scripts = sampleScriptsMap; // reset
+      ScriptsRegistry.serializedDefinitions.remove("script_p");
     });
 
     // todo: to add tests for runScript

@@ -9,6 +9,7 @@ import 'package:derry/utils.dart'
         JsonMap,
         JsonMapExtension,
         Reference,
+        currentPlatformKey,
         defaultDefinitionKey,
         referencePrefix,
         scriptsDefinitionKey;
@@ -76,6 +77,19 @@ class ScriptsRegistry {
 
       // for when script is a map
       if (scriptFound is Map) {
+        // check for a platform-specific script first
+        final platformKey = currentPlatformKey;
+        if (platformKey != null) {
+          final platformScripts = scriptFound[platformKey];
+          if (platformScripts != null &&
+              (platformScripts is List || platformScripts is String)) {
+            serializedDefinitions[scriptString] = Definition.from(
+              platformScripts,
+            );
+            return serializedDefinitions[scriptString]!;
+          }
+        }
+
         final scripts = scriptFound[scriptsDefinitionKey];
         final validity =
             scripts != null && (scripts is List || scripts is String);
