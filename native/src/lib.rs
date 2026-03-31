@@ -3,7 +3,13 @@ use shared_child::SharedChild;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::process::Command;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock};
+
+static CURRENT_CHILD: OnceLock<Mutex<Option<Arc<SharedChild>>>> = OnceLock::new();
+
+fn current_child() -> &'static Mutex<Option<Arc<SharedChild>>> {
+    CURRENT_CHILD.get_or_init(|| Mutex::new(None))
+}
 
 #[no_mangle]
 pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
@@ -11,7 +17,7 @@ pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
     let script: String = String::from(c_str.to_str().unwrap());
 
     println!("$ {}", script.dimmed());
-    println!("");
+    println!();
 
     #[cfg(target_os = "windows")]
     let shell: &str = "cmd";
@@ -25,21 +31,29 @@ pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
         _ => "",
     };
 
-    let mut child = Command::new(shell);
-    child.arg(option).arg(script);
-    let child_shared =
-        SharedChild::spawn(&mut child).expect("Rust: Coudln't spawn the shared_child process!");
-    let child_arc = Arc::new(child_shared);
-    let child_arc_clone = child_arc.clone();
-
+    // Register the Ctrl+C handler exactly once for the process lifetime.
+    // Subsequent calls return CtrlcError::MultipleHandlers, which we ignore.
     let _ = ctrlc::set_handler(move || {
-        child_arc_clone
-            .kill()
-            .expect("Rust: Couldn't kill the process!");
+        if let Ok(mut guard) = current_child().lock() {
+            if let Some(child) = guard.take() {
+                let _ = child.kill();
+            }
+        }
         println!();
+        std::process::exit(130);
     });
-    // .expect("Rust: Error setting interrupt handler!");
 
-    let status = child_arc.wait().expect("Rust: Process can't be awaited");
+    let mut cmd = Command::new(shell);
+    cmd.arg(option).arg(script);
+    let child = Arc::new(
+        SharedChild::spawn(&mut cmd).expect("Rust: Couldn't spawn the shared_child process!"),
+    );
+
+    *current_child().lock().unwrap() = Some(Arc::clone(&child));
+
+    let status = child.wait().expect("Rust: Process can't be awaited");
+
+    *current_child().lock().unwrap() = None;
+
     status.code().unwrap_or(1)
 }
