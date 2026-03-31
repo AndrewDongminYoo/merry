@@ -244,6 +244,38 @@ Define reusable variables in a `(variables)` section at the top level or inside 
 bundle: flutter build apk --output ${OUTPUT} --${MODE}
 ```
 
+**JSON output for tooling integration**
+
+Use `--output=json` (or `-o json`) to emit a machine-readable JSON payload — useful for VS Code extensions, shell scripts, or any tool that needs to enumerate available scripts programmatically.
+
+```bash
+merry ls --output=json
+```
+
+```json
+{
+  "name": "my_app",
+  "version": "1.0.0",
+  "scripts": [
+    {
+      "path": "build",
+      "commands": ["dart run build_runner build"],
+      "description": "Regenerate all generated files"
+    },
+    {
+      "path": "native build",
+      "commands": ["cargo build --release"],
+      "workdir": "packages/native"
+    }
+  ]
+}
+```
+
+```bash
+merry ls --output=tree  # human-readable tree (default)
+merry ls -o json        # machine-readable JSON
+```
+
 **List available scripts**
 
 Use this command to see what scripts are available in the current configuration.

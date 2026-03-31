@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File, IOOverrides, Platform;
 
 import 'package:merry/error.dart';
@@ -571,5 +572,65 @@ c:
     });
 
     // todo: to add tests for runScript
+  });
+
+  group('ls --output=json shape', () {
+    // These tests verify the data that the JSON output of `merry ls` is built
+    // from, without invoking the command itself (which writes directly to stdout).
+
+    test('simple string script produces single-element commands list', () {
+      final def = Definition.from('dart test');
+      expect(def.scripts, equals(['dart test']));
+      expect(def.description, isNull);
+      expect(def.workdir, isNull);
+    });
+
+    test('map script with metadata produces correct definition fields', () {
+      final def = Definition.from(const {
+        descriptionDefinitionKey: 'Run tests',
+        scriptsDefinitionKey: ['dart test', 'echo done'],
+        workdirDefinitionKey: '/tmp',
+      });
+      expect(def.scripts, equals(['dart test', 'echo done']));
+      expect(def.description, equals('Run tests'));
+      expect(def.workdir, equals('/tmp'));
+    });
+
+    test('JSON-encoded script entry matches expected schema', () {
+      final def = Definition.from(const {
+        descriptionDefinitionKey: 'Build the project',
+        scriptsDefinitionKey: 'dart run build_runner build',
+      });
+
+      final entry = <String, dynamic>{'path': 'build', 'commands': def.scripts};
+      if (def.description != null) entry['description'] = def.description;
+      if (def.workdir != null) entry['workdir'] = def.workdir;
+
+      final decoded =
+          jsonDecode('{"path":"build","commands":["dart run build_runner build"],"description":"Build the project"}')
+              as Map<String, dynamic>;
+
+      expect(entry['path'], equals(decoded['path']));
+      expect(entry['commands'], equals(decoded['commands']));
+      expect(entry['description'], equals(decoded['description']));
+      expect(entry.containsKey('workdir'), isFalse);
+    });
+
+    test('workdir field is omitted when null', () {
+      final def = Definition.from('echo hi');
+      final entry = <String, dynamic>{'path': 'greet', 'commands': def.scripts};
+      if (def.workdir != null) entry['workdir'] = def.workdir;
+      expect(entry.containsKey('workdir'), isFalse);
+    });
+
+    test('workdir field is present when set', () {
+      final def = Definition.from(const {
+        scriptsDefinitionKey: 'cargo build',
+        workdirDefinitionKey: 'native',
+      });
+      final entry = <String, dynamic>{'path': 'native', 'commands': def.scripts};
+      if (def.workdir != null) entry['workdir'] = def.workdir;
+      expect(entry['workdir'], equals('native'));
+    });
   });
 }

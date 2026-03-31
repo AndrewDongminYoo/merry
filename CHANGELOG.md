@@ -72,10 +72,19 @@ definition format is fully compatible — only the CLI command name changes.
 
 - **`(variables)`** / **`${VAR}`** — Define reusable variables scoped to the
   scripts map; environment variables are used as a fallback for unknown names
+
   ```yaml
   (variables):
     OUTPUT: build/release
   bundle: flutter build apk --output ${OUTPUT}
+  ```
+
+- **`merry ls --output=json`** — Machine-readable JSON output for tooling
+  integration (e.g. VS Code extensions); use `--output=tree` (default) for
+  the existing human-readable tree
+  ```bash
+  merry ls --output=json
+  # {"name":"my_app","version":"1.0.0","scripts":[{"path":"build","commands":[...]},...]}
   ```
 
 ### Migrating from derry

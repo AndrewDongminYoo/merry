@@ -1,3 +1,4 @@
+import 'dart:convert' show jsonEncode;
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
@@ -25,12 +26,24 @@ String _getPrefix(int current, int len) {
 /// - references will starts with an `$` and will have a different color
 class ListCommand extends Command {
   ListCommand() {
-    super.argParser.addFlag(
-      'description',
-      abbr: 'd',
-      help: 'whether to show descriptions or not',
-      negatable: false,
-    );
+    super.argParser
+      ..addFlag(
+        'description',
+        abbr: 'd',
+        help: 'whether to show descriptions or not',
+        negatable: false,
+      )
+      ..addOption(
+        'output',
+        abbr: 'o',
+        defaultsTo: 'tree',
+        allowed: ['tree', 'json'],
+        allowedHelp: {
+          'tree': 'human-readable tree (default)',
+          'json': 'machine-readable JSON for tooling integration',
+        },
+        help: 'output format',
+      );
   }
 
   @override
@@ -43,6 +56,7 @@ class ListCommand extends Command {
   Future<void> run() async {
     final argResults = super.argResults!;
     final showDescriptions = argResults['description'] as bool;
+    final outputFormat = argResults['output'] as String;
 
     final pubspec = Pubspec();
     final info = await pubspec.getInfo();
@@ -50,17 +64,39 @@ class ListCommand extends Command {
 
     final registry = ScriptsRegistry(scripts);
     final paths = registry.getPaths()..sort();
-
     final definitions = paths.map((path) => registry.getDefinition(path)).toList();
-    final descriptions = definitions.map((def) => def.description).toList();
+
+    if (outputFormat == 'json') {
+      _printJson(info, paths, definitions);
+      return;
+    }
+
+    _printTree(info, paths, definitions, showDescriptions);
+  }
+
+  void _printJson(Info info, List<String> paths, List<Definition> definitions) {
+    final scripts = <Map<String, dynamic>>[];
+    for (var i = 0; i < paths.length; i++) {
+      final def = definitions[i];
+      final entry = <String, dynamic>{'path': paths[i], 'commands': def.scripts};
+      if (def.description != null) entry['description'] = def.description;
+      if (def.workdir != null) entry['workdir'] = def.workdir;
+      scripts.add(entry);
+    }
+    stdout.writeln(jsonEncode({'name': info.name, 'version': info.version, 'scripts': scripts}));
+  }
+
+  void _printTree(
+    Info info,
+    List<String> paths,
+    List<Definition> definitions,
+    bool showDescriptions,
+  ) {
     final references = definitions
-        .map(
-          (def) => def.scripts.where((s) => s.startsWith(referencePrefix)).toList(),
-        )
+        .map((def) => def.scripts.where((s) => s.startsWith(referencePrefix)).toList())
         .toList();
 
     final buffer = StringBuffer();
-
     buffer.writeln('+ $info');
     buffer.writeln('│');
 
@@ -69,17 +105,14 @@ class ListCommand extends Command {
     for (final pathEntry in paths.asMap().entries) {
       final pathIndex = pathEntry.key;
       final path = pathEntry.value;
-
-      final description = descriptions[pathIndex];
+      final description = definitions[pathIndex].description;
       final refs = references[pathIndex];
 
       final formattedDescription = showDescriptions && description != null
           ? '${''.padLeft(longestScriptLength + 4 - path.length)} - $description'.gray()
           : '';
 
-      buffer.writeln(
-        '${_getPrefix(pathIndex, paths.length)} $path $formattedDescription',
-      );
+      buffer.writeln('${_getPrefix(pathIndex, paths.length)} $path $formattedDescription');
 
       for (final refEntry in refs.asMap().entries) {
         final referenceIndex = refEntry.key;
