@@ -6,8 +6,8 @@ environment:
   sdk: ">=2.18.0 <3.0.0"
 
 dev_dependencies:
+  build_runner: ^2.13.1
   derry:
     path: ../
-  build_runner: ^2.3.3
 
 scripts: derry.yaml
