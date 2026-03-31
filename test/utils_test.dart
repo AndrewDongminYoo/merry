@@ -271,6 +271,38 @@ c:
     });
   });
 
+  group('applyPositionalArgs', () {
+    test('replaces \$1, \$2 with positional args', () {
+      final result = applyPositionalArgs('echo \$1 \$2', 'hello world');
+      expect(result.key, equals('echo hello world'));
+      expect(result.value, equals(''));
+    });
+
+    test('leaves script unchanged when no \$N tokens present', () {
+      final result = applyPositionalArgs('echo hello', 'world');
+      expect(result.key, equals('echo hello'));
+      expect(result.value, equals('world'));
+    });
+
+    test('returns remaining unused args', () {
+      final result = applyPositionalArgs('echo \$1', 'hello world');
+      expect(result.key, equals('echo hello'));
+      expect(result.value, equals('world'));
+    });
+
+    test('replaces out-of-range token with empty string', () {
+      final result = applyPositionalArgs('echo \$1 \$2', 'hello');
+      expect(result.key, equals('echo hello '));
+      expect(result.value, equals(''));
+    });
+
+    test('handles empty extra', () {
+      final result = applyPositionalArgs('echo \$1', '');
+      expect(result.key, equals('echo '));
+      expect(result.value, equals(''));
+    });
+  });
+
   test("Reference's from factory should work", () {
     expect(
       Reference.from("\$script_a"),

@@ -1,5 +1,6 @@
 import 'package:derry/bindings.dart' as bindings;
 import 'package:derry/error.dart' show DerryError, ErrorCode;
+import 'package:derry/src/utils/positional_args.dart' show applyPositionalArgs;
 import 'package:derry/utils.dart'
     show
         Definition,
@@ -140,8 +141,9 @@ class ScriptsRegistry {
           '\\$referencePrefix',
           referencePrefix,
         );
+        final positional = applyPositionalArgs(normalizedScript, extra);
         exitCode = await bindings.runScript(
-          _joinStrings([normalizedScript, extra]),
+          _joinStrings([positional.key, positional.value]),
         );
       }
     }
