@@ -1,7 +1,7 @@
 import 'package:derry/bindings.dart' as bindings;
 import 'package:derry/error.dart' show DerryError, ErrorCode;
 import 'package:derry/utils.dart'
-    show JsonMap, JsonMapExtension, Reference, Definition, referencePrefix, scriptsDefinitionKey;
+    show Definition, JsonMap, JsonMapExtension, Reference, referencePrefix, scriptsDefinitionKey;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');

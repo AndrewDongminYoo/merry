@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:derry/error.dart' show DerryError, ErrorCode;
-import 'package:derry/utils.dart' show JsonMap, ToJsonMapExtension, readYamlMap, Info;
+import 'package:derry/utils.dart' show Info, JsonMap, ToJsonMapExtension, readYamlMap;
 import 'package:path/path.dart' as path;
 
 const String pubspecFileName = 'pubspec.yaml';
