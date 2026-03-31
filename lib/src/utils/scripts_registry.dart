@@ -2,6 +2,7 @@ import 'dart:io' show Platform;
 
 import 'package:derry/bindings.dart' as bindings;
 import 'package:derry/error.dart' show DerryError, ErrorCode;
+import 'package:derry/src/utils/json_map.dart';
 import 'package:derry/src/utils/positional_args.dart' show applyPositionalArgs;
 import 'package:derry/utils.dart'
     show
@@ -9,6 +10,7 @@ import 'package:derry/utils.dart'
         JsonMap,
         JsonMapExtension,
         Reference,
+        aliasesDefinitionKey,
         currentPlatformKey,
         defaultDefinitionKey,
         referencePrefix,
@@ -127,15 +129,59 @@ class ScriptsRegistry {
     return references[scriptString] ??= Reference.from(scriptString);
   }
 
+  /// Lazily-built map of alias → canonical script path.
+  static Map<String, String>? aliasMap;
+
+  /// Builds a flat alias → canonical path map by recursively scanning [map].
+  Map<String, String> _collectAliases(JsonMap map, String prefix) {
+    final result = <String, String>{};
+    final metaPattern = RegExp(r'^\(\w+\)$');
+
+    for (final key in map.keys) {
+      if (metaPattern.hasMatch(key)) continue;
+
+      final fullPath = prefix.isEmpty ? key : '$prefix $key';
+      final value = map[key];
+
+      if (value is Map) {
+        final jsonValue = value is JsonMap ? value : value.toJsonMap();
+        final raw = jsonValue[aliasesDefinitionKey];
+        if (raw != null) {
+          final aliasList = raw is List
+              ? raw.map((e) => e.toString()).toList()
+              : [raw.toString()];
+          for (final alias in aliasList) {
+            final aliasPath = prefix.isEmpty ? alias : '$prefix $alias';
+            result[aliasPath] = fullPath;
+          }
+        }
+        result.addAll(_collectAliases(jsonValue, fullPath));
+      }
+    }
+    return result;
+  }
+
+  /// Returns the alias map, building it lazily on first call.
+  Map<String, String> getAliasMap() {
+    return aliasMap ??= _collectAliases(scripts!, '');
+  }
+
+  /// Returns the canonical script path for [script], resolving aliases.
+  String _resolveAlias(String script) {
+    return getAliasMap()[script] ?? script;
+  }
+
   /// Runs a script from the scripts map if it exists.
   Future<int> runScript(String script, {String extra = ''}) async {
-    final preScript = lookup('pre$script');
-    if (preScript != null) await _runScript('pre$script');
+    final canonical = _resolveAlias(script);
 
-    final exitCode = await _runScript(script, extra: extra);
+    final preScript = lookup('pre$canonical');
+    if (preScript != null) await _runScript('pre$canonical');
 
-    final postScript = lookup('post$script');
-    if (postScript != null) await _runScript('post$script');
+    final exitCode = await _runScript(canonical, extra: extra);
+
+    final postScript = lookup('post$canonical');
+    if (postScript != null) await _runScript('post$canonical');
 
     return exitCode;
   }
@@ -160,8 +206,8 @@ class ScriptsRegistry {
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
           final cdCmd = Platform.isWindows
-              ? 'cd /d "\${definition.workdir}" &&'
-              : 'cd "\${definition.workdir}" &&';
+              ? 'cd /d "${definition.workdir}" &&'
+              : 'cd "${definition.workdir}" &&';
           normalizedScript = '$cdCmd $normalizedScript';
         }
         final positional = applyPositionalArgs(normalizedScript, extra);

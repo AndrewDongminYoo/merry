@@ -130,6 +130,7 @@ void main() {
         final pubspec = Pubspec();
 
         // filePath
+<<<<<<< HEAD
         when(
           mockCurrentDirectory.uri,
         ).thenReturn(Uri.file("current-directory-path"));
@@ -138,6 +139,13 @@ void main() {
           Pubspec.filePath,
           equals(path.join("current-directory-path", pubspecFileName)),
         );
+=======
+        when(mockCurrentDirectory.uri)
+            .thenReturn(Uri.file("current-directory-path"));
+        when(mockCurrentDirectory.path).thenReturn("current-directory-path");
+        expect(Pubspec.filePath,
+            equals(path.join("current-directory-path", pubspecFileName)));
+>>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         // content
         const mockPubspecContent = """
@@ -145,9 +153,14 @@ name: test
 version: 0.0.0""";
         const mockPubspecMap = {"name": "test", "version": "0.0.0"};
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
+<<<<<<< HEAD
         when(
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockPubspecContent));
+=======
+        when(mockFile.readAsString())
+            .thenAnswer((_) => Future.value(mockPubspecContent));
+>>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         expect(Pubspec.content, equals(null));
         expect(await pubspec.getContent(), equals(mockPubspecMap));
@@ -216,9 +229,14 @@ c:
           "c": ["d", "e"],
         };
         when(mockFile.exists()).thenAnswer((_) => Future.value(true));
+<<<<<<< HEAD
         when(
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockScriptsFile));
+=======
+        when(mockFile.readAsString())
+            .thenAnswer((_) => Future.value(mockScriptsFile));
+>>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
 
         expect(await pubspec.getScripts(), equals(mockScriptsMap));
         expect(Pubspec.scripts, equals(mockScriptsMap));
@@ -425,6 +443,7 @@ c:
       );
     });
 
+<<<<<<< HEAD
     test("getDefinition selects platform-specific script", () {
       final platformKey = Platform.isLinux
           ? linuxDefinitionKey
@@ -447,6 +466,59 @@ c:
 
       ScriptsRegistry.scripts = sampleScriptsMap; // reset
       ScriptsRegistry.serializedDefinitions.remove("script_p");
+=======
+    test("getAliasMap collects top-level aliases", () {
+      ScriptsRegistry.scripts = {
+        "install": {
+          aliasesDefinitionKey: ["i", "in"],
+          scriptsDefinitionKey: "dart pub get",
+        }
+      };
+      ScriptsRegistry.aliasMap = null; // clear cache
+
+      expect(
+        registry.getAliasMap(),
+        equals({"i": "install", "in": "install"}),
+      );
+
+      ScriptsRegistry.scripts = sampleScriptsMap;
+      ScriptsRegistry.aliasMap = null;
+    });
+
+    test("getAliasMap collects nested aliases", () {
+      ScriptsRegistry.scripts = {
+        "platform": {
+          "linux": {
+            aliasesDefinitionKey: "lin",
+            scriptsDefinitionKey: "echo linux",
+          }
+        }
+      };
+      ScriptsRegistry.aliasMap = null;
+
+      expect(
+        registry.getAliasMap(),
+        equals({"platform lin": "platform linux"}),
+      );
+
+      ScriptsRegistry.scripts = sampleScriptsMap;
+      ScriptsRegistry.aliasMap = null;
+    });
+
+    test("getAliasMap handles string alias (not list)", () {
+      ScriptsRegistry.scripts = {
+        "install": {
+          aliasesDefinitionKey: "i",
+          scriptsDefinitionKey: "dart pub get",
+        }
+      };
+      ScriptsRegistry.aliasMap = null;
+
+      expect(registry.getAliasMap(), equals({"i": "install"}));
+
+      ScriptsRegistry.scripts = sampleScriptsMap;
+      ScriptsRegistry.aliasMap = null;
+>>>>>>> 50c8cc7 (feat: add (aliases) metadata key for command aliases)
     });
 
     // todo: to add tests for runScript

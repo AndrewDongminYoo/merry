@@ -14,6 +14,9 @@ const String defaultDefinitionKey = '(default)';
 /// Key used to set the working directory for a script.
 const String workdirDefinitionKey = '(workdir)';
 
+/// Key used to define aliases for a script.
+const String aliasesDefinitionKey = '(aliases)';
+
 /// Platform-specific script keys.
 const String linuxDefinitionKey = '(linux)';
 const String macosDefinitionKey = '(macos)';
