@@ -7,7 +7,7 @@ list:
   - echo done
 # example for advanced configurations
 multiline:
-  (description): "an example for `multiline` scripts usage"
+  (description): an example for `multiline` scripts usage
   (scripts): >
     echo test &&
     "false" &&
