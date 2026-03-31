@@ -404,6 +404,22 @@ c:
       ScriptsRegistry.scripts = sampleScriptsMap; // reset
     });
 
+    test("getDefinition uses (default) for nested command groups", () {
+      ScriptsRegistry.scripts = {
+        "group": {
+          defaultDefinitionKey: "echo default",
+          "sub": "echo sub",
+        }
+      };
+      ScriptsRegistry.serializedDefinitions.remove("group"); // clear cache
+      expect(
+        registry.getDefinition("group"),
+        equals(Definition.from("echo default")),
+      );
+      ScriptsRegistry.scripts = sampleScriptsMap; // reset
+      ScriptsRegistry.serializedDefinitions.remove("group");
+    });
+
     test("getReference memoization works", () {
       expect(ScriptsRegistry.references, equals({}));
       expect(

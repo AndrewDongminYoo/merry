@@ -6,6 +6,9 @@ const String descriptionDefinitionKey = '(description)';
 /// Key used to define scripts.
 const String scriptsDefinitionKey = '(scripts)';
 
+/// Key used to define a default script for a nested command group.
+const String defaultDefinitionKey = '(default)';
+
 /// Parses a list from yaml input.
 ///
 /// Can accept a `List` or a `String`.

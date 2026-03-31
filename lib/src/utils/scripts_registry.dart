@@ -1,7 +1,14 @@
 import 'package:derry/bindings.dart' as bindings;
 import 'package:derry/error.dart' show DerryError, ErrorCode;
 import 'package:derry/utils.dart'
-    show Definition, JsonMap, JsonMapExtension, Reference, referencePrefix, scriptsDefinitionKey;
+    show
+        Definition,
+        JsonMap,
+        JsonMapExtension,
+        Reference,
+        defaultDefinitionKey,
+        referencePrefix,
+        scriptsDefinitionKey;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
@@ -50,15 +57,14 @@ class ScriptsRegistry {
       if (scriptFound == null) {
         throw DerryError(
           type: ErrorCode.scriptNotDefined,
-          body: {
-            'script': scriptString,
-            'suggestions': getPaths(),
-          },
+          body: {'script': scriptString, 'suggestions': getPaths()},
         );
       }
 
       // for when script is not a type we want
-      if (scriptFound is! Map && scriptFound is! List && scriptFound is! String) {
+      if (scriptFound is! Map &&
+          scriptFound is! List &&
+          scriptFound is! String) {
         throw DerryError(
           type: ErrorCode.invalidScript,
           body: {'script': scriptString},
@@ -68,9 +74,20 @@ class ScriptsRegistry {
       // for when script is a map
       if (scriptFound is Map) {
         final scripts = scriptFound[scriptsDefinitionKey];
-        final validity = scripts != null && (scripts is List || scripts is String);
+        final validity =
+            scripts != null && (scripts is List || scripts is String);
 
         if (!validity) {
+          // check for (default) key to support default scripts in nested groups
+          final defaultScript = scriptFound[defaultDefinitionKey];
+          if (defaultScript != null &&
+              (defaultScript is List || defaultScript is String)) {
+            serializedDefinitions[scriptString] = Definition.from(
+              defaultScript,
+            );
+            return serializedDefinitions[scriptString]!;
+          }
+
           throw DerryError(
             type: ErrorCode.invalidScript,
             body: {'script': scriptString, 'paths': getPaths()},
@@ -119,8 +136,13 @@ class ScriptsRegistry {
         );
       } else {
         // replace all \$ with $, they are not valid references
-        final normalizedScript = script.replaceAll('\\$referencePrefix', referencePrefix);
-        exitCode = await bindings.runScript(_joinStrings([normalizedScript, extra]));
+        final normalizedScript = script.replaceAll(
+          '\\$referencePrefix',
+          referencePrefix,
+        );
+        exitCode = await bindings.runScript(
+          _joinStrings([normalizedScript, extra]),
+        );
       }
     }
 
