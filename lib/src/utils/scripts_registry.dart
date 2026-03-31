@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:derry/bindings.dart' as bindings;
 import 'package:derry/error.dart' show DerryError, ErrorCode;
 import 'package:derry/src/utils/positional_args.dart' show applyPositionalArgs;
@@ -137,10 +139,17 @@ class ScriptsRegistry {
         );
       } else {
         // replace all \$ with $, they are not valid references
-        final normalizedScript = script.replaceAll(
+        var normalizedScript = script.replaceAll(
           '\\$referencePrefix',
           referencePrefix,
         );
+        // prepend cd if a workdir is specified
+        if (definition.workdir != null) {
+          final cdCmd = Platform.isWindows
+              ? 'cd /d "\${definition.workdir}" &&'
+              : 'cd "\${definition.workdir}" &&';
+          normalizedScript = '$cdCmd $normalizedScript';
+        }
         final positional = applyPositionalArgs(normalizedScript, extra);
         exitCode = await bindings.runScript(
           _joinStrings([positional.key, positional.value]),

@@ -34,6 +34,19 @@ void main() {
         ),
       ),
     );
+
+    expect(
+      Definition.from(const {
+        '(scripts)': 'echo 0',
+        '(workdir)': '/tmp',
+      }),
+      equals(
+        const Definition(
+          scripts: ['echo 0'],
+          workdir: '/tmp',
+        ),
+      ),
+    );
   });
 
   test("Info's toString should work", () {
