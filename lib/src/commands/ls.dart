@@ -75,14 +75,35 @@ class ListCommand extends Command {
   }
 
   void _printJson(Info info, List<String> paths, List<Definition> definitions) {
+    final nameSet = paths.toSet();
     final scripts = <Map<String, dynamic>>[];
+
     for (var i = 0; i < paths.length; i++) {
+      final name = paths[i];
       final def = definitions[i];
-      final entry = <String, dynamic>{'path': paths[i], 'commands': def.scripts};
+
+      final entry = <String, dynamic>{'name': name, 'commands': def.scripts};
       if (def.description != null) entry['description'] = def.description;
       if (def.workdir != null) entry['workdir'] = def.workdir;
+
+      // hooks that run automatically before/after this script
+      final hooks = <String, String>{};
+      if (nameSet.contains('pre$name')) hooks['pre'] = 'pre$name';
+      if (nameSet.contains('post$name')) hooks['post'] = 'post$name';
+      if (hooks.isNotEmpty) entry['hooks'] = hooks;
+
+      // if this script is itself a pre/post hook for another script
+      if (name.startsWith('pre') && name.length > 3) {
+        final base = name.substring(3);
+        if (nameSet.contains(base)) entry['hook_for'] = base;
+      } else if (name.startsWith('post') && name.length > 4) {
+        final base = name.substring(4);
+        if (nameSet.contains(base)) entry['hook_for'] = base;
+      }
+
       scripts.add(entry);
     }
+
     const encoder = JsonEncoder.withIndent('  ');
     stdout.writeln(encoder.convert({'name': info.name, 'version': info.version, 'scripts': scripts}));
   }

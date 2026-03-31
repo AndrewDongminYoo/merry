@@ -1,4 +1,3 @@
-import 'dart:convert' show jsonDecode;
 import 'dart:io' show Directory, File, IOOverrides, Platform;
 
 import 'package:merry/error.dart';
@@ -596,29 +595,26 @@ c:
       expect(def.workdir, equals('/tmp'));
     });
 
-    test('JSON-encoded script entry matches expected schema', () {
+    test('entry uses name field (not path)', () {
       final def = Definition.from(const {
         descriptionDefinitionKey: 'Build the project',
         scriptsDefinitionKey: 'dart run build_runner build',
       });
 
-      final entry = <String, dynamic>{'path': 'build', 'commands': def.scripts};
+      final entry = <String, dynamic>{'name': 'build', 'commands': def.scripts};
       if (def.description != null) entry['description'] = def.description;
       if (def.workdir != null) entry['workdir'] = def.workdir;
 
-      final decoded =
-          jsonDecode('{"path":"build","commands":["dart run build_runner build"],"description":"Build the project"}')
-              as Map<String, dynamic>;
-
-      expect(entry['path'], equals(decoded['path']));
-      expect(entry['commands'], equals(decoded['commands']));
-      expect(entry['description'], equals(decoded['description']));
+      expect(entry['name'], equals('build'));
+      expect(entry['commands'], equals(['dart run build_runner build']));
+      expect(entry['description'], equals('Build the project'));
       expect(entry.containsKey('workdir'), isFalse);
+      expect(entry.containsKey('path'), isFalse);
     });
 
     test('workdir field is omitted when null', () {
       final def = Definition.from('echo hi');
-      final entry = <String, dynamic>{'path': 'greet', 'commands': def.scripts};
+      final entry = <String, dynamic>{'name': 'greet', 'commands': def.scripts};
       if (def.workdir != null) entry['workdir'] = def.workdir;
       expect(entry.containsKey('workdir'), isFalse);
     });
@@ -628,9 +624,54 @@ c:
         scriptsDefinitionKey: 'cargo build',
         workdirDefinitionKey: 'native',
       });
-      final entry = <String, dynamic>{'path': 'native', 'commands': def.scripts};
+      final entry = <String, dynamic>{'name': 'native', 'commands': def.scripts};
       if (def.workdir != null) entry['workdir'] = def.workdir;
       expect(entry['workdir'], equals('native'));
+    });
+
+    test('hooks field lists pre/post script names when they exist', () {
+      final names = ['build', 'postbuild', 'prebuild'];
+      final nameSet = names.toSet();
+
+      Map<String, dynamic> buildEntry(String name) {
+        final entry = <String, dynamic>{'name': name};
+        final hooks = <String, String>{};
+        if (nameSet.contains('pre$name')) hooks['pre'] = 'pre$name';
+        if (nameSet.contains('post$name')) hooks['post'] = 'post$name';
+        if (hooks.isNotEmpty) entry['hooks'] = hooks;
+        if (name.startsWith('pre') && name.length > 3) {
+          final base = name.substring(3);
+          if (nameSet.contains(base)) entry['hook_for'] = base;
+        } else if (name.startsWith('post') && name.length > 4) {
+          final base = name.substring(4);
+          if (nameSet.contains(base)) entry['hook_for'] = base;
+        }
+        return entry;
+      }
+
+      final scriptEntry = buildEntry('build');
+      expect(scriptEntry['hooks'], equals({'pre': 'prebuild', 'post': 'postbuild'}));
+      expect(scriptEntry.containsKey('hook_for'), isFalse);
+
+      final preEntry = buildEntry('prebuild');
+      expect(preEntry.containsKey('hooks'), isFalse);
+      expect(preEntry['hook_for'], equals('build'));
+
+      final postEntry = buildEntry('postbuild');
+      expect(postEntry.containsKey('hooks'), isFalse);
+      expect(postEntry['hook_for'], equals('build'));
+    });
+
+    test('hook_for is not set when base script does not exist', () {
+      // "preview" starts with "pre" but "view" does not exist as a script
+      final nameSet = {'preview', 'test'};
+      const name = 'preview';
+      final entry = <String, dynamic>{'name': name};
+      if (name.startsWith('pre') && name.length > 3) {
+        final base = name.substring(3);
+        if (nameSet.contains(base)) entry['hook_for'] = base;
+      }
+      expect(entry.containsKey('hook_for'), isFalse);
     });
   });
 }
