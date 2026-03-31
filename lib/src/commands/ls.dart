@@ -1,4 +1,4 @@
-import 'dart:convert' show jsonEncode;
+import 'dart:convert' show JsonEncoder;
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
@@ -83,7 +83,8 @@ class ListCommand extends Command {
       if (def.workdir != null) entry['workdir'] = def.workdir;
       scripts.add(entry);
     }
-    stdout.writeln(jsonEncode({'name': info.name, 'version': info.version, 'scripts': scripts}));
+    const encoder = JsonEncoder.withIndent('  ');
+    stdout.writeln(encoder.convert({'name': info.name, 'version': info.version, 'scripts': scripts}));
   }
 
   void _printTree(
