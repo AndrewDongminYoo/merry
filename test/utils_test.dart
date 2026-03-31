@@ -367,9 +367,18 @@ c:
     late ScriptsRegistry registry;
     final sampleScriptsMap = {"script_a": "a"};
 
-    test("constructor works", () {
-      expect(ScriptsRegistry.scripts, equals(null));
+    setUp(() {
+      ScriptsRegistry.scripts = null;
+      ScriptsRegistry.paths = null;
+      ScriptsRegistry.searchResults = {};
+      ScriptsRegistry.serializedDefinitions = {};
+      ScriptsRegistry.references = {};
+      ScriptsRegistry.variables = null;
+      ScriptsRegistry.aliasMap = null;
       registry = ScriptsRegistry(sampleScriptsMap);
+    });
+
+    test("constructor works", () {
       expect(ScriptsRegistry.scripts, equals(sampleScriptsMap));
     });
 
