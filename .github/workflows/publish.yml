@@ -5,6 +5,10 @@ on:
     tags:
       - v[0-9]+.[0-9]+.[0-9]+*
 
+env:
+  # Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   publish:
     environment: pub.dev

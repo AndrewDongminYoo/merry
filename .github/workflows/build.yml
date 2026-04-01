@@ -2,6 +2,10 @@ on: workflow_dispatch
 
 name: Compile blobs
 
+env:
+  # Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build_linux_x64:
     name: Build for Linux x64
