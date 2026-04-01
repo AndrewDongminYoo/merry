@@ -2,6 +2,10 @@ on: workflow_dispatch
 
 name: Compile blobs
 
+permissions:
+  contents: write
+  pull-requests: write
+
 env:
   # Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
