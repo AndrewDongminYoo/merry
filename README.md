@@ -31,6 +31,26 @@ merry build
 
 <br>
 
+## Fork, License, and Credits
+
+Merry is a maintained fork of [derry](https://pub.dev/packages/derry). This repository keeps the upstream MIT license and preserves the original `derry` copyright notice alongside Merry's own copyright notice in [LICENSE](LICENSE).
+
+The script definition format stays compatible with `derry`, while ongoing development in this fork continues under the `merry` CLI name. Changes added in Merry include:
+
+- command-group defaults with `(default)`
+- positional argument placeholders such as `$1`, `$2`, and so on
+- per-script working directories with `(workdir)`
+- platform-specific keys such as `(linux)`, `(macos)`, and `(windows)`
+- command aliases via `(aliases)`
+- variable substitution with `${VAR}`
+- JSON output for `merry ls` via `--output=json`
+
+## Acknowledgements
+
+This project is based on `derry`, originally created by Frenco Jobs. Thanks to Frenco Jobs and the upstream `derry` contributors whose work continues in this fork. Contributors visible in the preserved project history include Phoe Lapyae, Britannio Jarrett, and lynnphayu.
+
+<br>
+
 ## Installation
 
 Install merry as a global dependency from [pub.dev](https://pub.dev) like this.
