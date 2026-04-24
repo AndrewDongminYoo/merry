@@ -9,7 +9,7 @@ String _getAbsolutePath(String filePath) => path.normalize(path.absolute(filePat
 
 /// The `merry source` command
 /// which prints out the current config file location.
-class SourceCommand extends Command {
+class SourceCommand extends Command<int> {
   SourceCommand() {
     super.argParser.addFlag(
       'absolute',
@@ -32,7 +32,7 @@ class SourceCommand extends Command {
   String get description => 'find the location of the merry config file';
 
   @override
-  Future<void> run() async {
+  Future<int> run() async {
     final argResults = super.argResults!;
     final check = argResults['check'] as bool;
     final absolute = argResults['absolute'] as bool;
@@ -42,5 +42,6 @@ class SourceCommand extends Command {
 
     if (check) await pubspec.getScripts();
     stdout.writeln(absolute ? _getAbsolutePath(source) : source);
+    return 0;
   }
 }

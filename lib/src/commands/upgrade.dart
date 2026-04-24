@@ -11,7 +11,7 @@ import 'package:tint/tint.dart';
 ///
 /// It's an equivalent of executing the
 /// `dart run pub global activate merry` by yourself.
-class UpgradeCommand extends Command {
+class UpgradeCommand extends Command<int> {
   @override
   String get name => 'upgrade';
 
@@ -19,13 +19,13 @@ class UpgradeCommand extends Command {
   String get description => 'upgrade to the latest version of merry itself';
 
   @override
-  Future<void> run() async {
+  Future<int> run() {
     const info = Info(name: 'merry', version: packageVersion);
     final registry = ScriptsRegistry({
       'upgrade': 'dart run pub global activate merry',
     });
 
     stdout.writeln('> $info upgrade'.bold());
-    registry.runScript('upgrade');
+    return registry.runScript('upgrade');
   }
 }

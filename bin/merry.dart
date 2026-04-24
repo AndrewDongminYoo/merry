@@ -11,7 +11,7 @@ Future<void> main(List<String> arguments) async {
 }
 
 Future<int> runMerry(List<String> arguments) async {
-  final runner = CommandRunner('merry', 'A script runner/manager for dart.');
+  final runner = CommandRunner<int>('merry', 'A script runner/manager for dart.');
 
   runner
     ..addCommand(RunCommmand())
@@ -32,8 +32,7 @@ Future<int> runMerry(List<String> arguments) async {
     return 0;
   } else {
     try {
-      final exitCode = await runner.run(arguments);
-      return exitCode as int? ?? 0;
+      return await runner.run(arguments) ?? 0;
       // ignore: avoid_catching_errors
     } on MerryError catch (error) {
       handleError(error);

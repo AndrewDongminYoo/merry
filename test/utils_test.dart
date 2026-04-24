@@ -80,7 +80,7 @@ void main() {
       final jsonmap = {
         'foo': {
           'bar': ['baz', 'bar'],
-          'baz': [],
+          'baz': <String>[],
           'buzz': ['foo'],
         },
         'bar': 'foo',
@@ -96,7 +96,7 @@ void main() {
       final jsonmap = {
         'foo': {
           'bar': {
-            'baz': {'bar': 'foo', 'baz': []},
+            'baz': {'bar': 'foo', 'baz': <String>[]},
           },
         },
         'bar': 'foo',
@@ -168,7 +168,7 @@ version: 0.0.0""";
           throwsA(equals(MerryError(type: ErrorCode.missingScripts))),
         );
 
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
 
         // if scripts field is of a type other than Map or String
         final pubspecInvalidSource = Pubspec();
@@ -178,11 +178,11 @@ version: 0.0.0""";
           throwsA(equals(MerryError(type: ErrorCode.invalidScripts))),
         );
 
-        await Future.delayed(const Duration(seconds: 1));
+        await Future<void>.delayed(const Duration(seconds: 1));
 
         // if scripts field is a Map
         final pubspecMapSource = Pubspec();
-        (await pubspecMapSource.getContent())[scriptsKey] = {};
+        (await pubspecMapSource.getContent())[scriptsKey] = <String, dynamic>{};
         expect(await pubspecMapSource.getSource(), equals(pubspecFileName));
 
         // if scripts field is a string
@@ -193,7 +193,7 @@ version: 0.0.0""";
         // getScripts
         // if scripts field is a map
         final pubspecMapScripts = Pubspec();
-        (await pubspecMapScripts.getContent())[scriptsKey] = {};
+        (await pubspecMapScripts.getContent())[scriptsKey] = <String, dynamic>{};
         expect(await pubspecMapScripts.getScripts(), equals({}));
 
         // if scripts field is a string aka a file path
@@ -383,7 +383,7 @@ c:
         throwsA(isA<MerryError>()),
       );
 
-      final invalidMapRegistry = ScriptsRegistry({"script_d": {}});
+      final invalidMapRegistry = ScriptsRegistry({"script_d": <String, dynamic>{}});
       expect(
         () => invalidMapRegistry.getDefinition("script_d"),
         throwsA(isA<MerryError>()),

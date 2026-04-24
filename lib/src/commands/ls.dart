@@ -24,7 +24,7 @@ String _getPrefix(int current, int len) {
 ///
 /// - the name & version of the package by the config will also be printed out
 /// - references will starts with an `$` and will have a different color
-class ListCommand extends Command {
+class ListCommand extends Command<int> {
   ListCommand() {
     super.argParser
       ..addFlag(
@@ -53,7 +53,7 @@ class ListCommand extends Command {
   String get description => 'list available scripts in the current config';
 
   @override
-  Future<void> run() async {
+  Future<int> run() async {
     final argResults = super.argResults!;
     final showDescriptions = argResults['description'] as bool;
     final outputFormat = argResults['output'] as String;
@@ -68,10 +68,11 @@ class ListCommand extends Command {
 
     if (outputFormat == 'json') {
       _printJson(info, paths, definitions);
-      return;
+      return 0;
     }
 
     _printTree(info, paths, definitions, showDescriptions);
+    return 0;
   }
 
   void _printJson(Info info, List<String> paths, List<Definition> definitions) {

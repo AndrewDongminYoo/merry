@@ -1011,6 +1011,8 @@ linter:
 analyzer:
   language:
     strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
 
   errors:
     missing_required_param: error

@@ -3,7 +3,7 @@ typedef JsonMap = Map<String, dynamic>;
 
 final _metaKeyPattern = RegExp(r'^\(\w+\)$');
 
-extension ToJsonMapExtension on Map {
+extension ToJsonMapExtension on Map<dynamic, dynamic> {
   /// Takes a `Map` and returns a `JsonMap`
   JsonMap toJsonMap() {
     final self = this;

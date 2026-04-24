@@ -13,7 +13,7 @@ import 'package:tint/tint.dart';
 ///
 /// - the package name, version, and the script will also be
 /// printed out as the info message
-class RunCommmand extends Command {
+class RunCommmand extends Command<int> {
   @override
   String get name => 'run';
 
@@ -25,12 +25,12 @@ class RunCommmand extends Command {
 
     if (flag) {
       final start = args.indexOf('--');
-      return <String, List>{
+      return <String, List<String>>{
         'args': args.sublist(0, start).toList(),
         'extra': args.sublist(start + 1).toList(),
       };
     } else {
-      return <String, List>{'args': args, 'extra': []};
+      return <String, List<String>>{'args': args, 'extra': <String>[]};
     }
   }
 

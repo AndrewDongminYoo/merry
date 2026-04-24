@@ -23,7 +23,7 @@ Future<YamlDocument> _readYamlFile(String filePath) async {
 
 /// Reads and returns a yaml file if exists and
 /// if the content is a map.
-Future<Map> readYamlMap(String filePath) async {
+Future<Map<dynamic, dynamic>> readYamlMap(String filePath) async {
   final document = await _readYamlFile(filePath);
 
   if (document.contents is! YamlMap) {
