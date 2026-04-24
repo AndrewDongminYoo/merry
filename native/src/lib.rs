@@ -5,6 +5,10 @@ use std::os::raw::c_char;
 use std::process::Command;
 use std::sync::{Arc, Mutex, OnceLock};
 
+const ERR_SPAWN: i32 = 1;
+const ERR_NULL_PTR: i32 = 2;
+const ERR_INVALID_UTF8: i32 = 3;
+
 static CURRENT_CHILD: OnceLock<Mutex<Option<Arc<SharedChild>>>> = OnceLock::new();
 
 fn current_child() -> &'static Mutex<Option<Arc<SharedChild>>> {
@@ -14,65 +18,77 @@ fn current_child() -> &'static Mutex<Option<Arc<SharedChild>>> {
 #[no_mangle]
 pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
     if ptr.is_null() {
-        return 2;
+        return ERR_NULL_PTR;
     }
     let c_str = unsafe { CStr::from_ptr(ptr) };
     let script = match c_str.to_str() {
         Ok(value) => String::from(value),
-        Err(_) => return 3,
+        Err(_) => return ERR_INVALID_UTF8,
     };
 
     println!("$ {}", script.dimmed());
     println!();
 
-    #[cfg(target_os = "windows")]
-    let shell: &str = "cmd";
-
-    #[cfg(not(target_os = "windows"))]
-    let shell: &str = "bash";
-
-    #[cfg(target_os = "windows")]
-    let option: &str = "/C";
-
-    #[cfg(not(target_os = "windows"))]
-    let option: &str = "-c";
+    let (shell, option): (&str, &str) = if cfg!(target_os = "windows") {
+        ("cmd", "/C")
+    } else {
+        ("bash", "-c")
+    };
 
     // Register the Ctrl+C handler exactly once for the process lifetime.
     // Subsequent calls return CtrlcError::MultipleHandlers, which we ignore.
     let _ = ctrlc::set_handler(move || {
-        if let Ok(mut guard) = current_child().lock() {
-            if let Some(child) = guard.take() {
-                let _ = child.kill();
-            }
+        let mut guard = current_child()
+            .lock()
+            .expect("CURRENT_CHILD mutex poisoned");
+        if let Some(child) = guard.take() {
+            let _ = child.kill();
         }
         println!();
         std::process::exit(130);
     });
 
+    // Acquire the lock before spawning so a Ctrl+C arriving between spawn and
+    // storage cannot race past an empty CURRENT_CHILD.
     let mut cmd = Command::new(shell);
-    cmd.arg(option).arg(script);
-    let child = match SharedChild::spawn(&mut cmd) {
-        Ok(process) => Arc::new(process),
-        Err(_) => return 1,
-    };
+    cmd.arg(option).arg(&script);
 
-    if let Ok(mut guard) = current_child().lock() {
+    let child = {
+        let mut guard = current_child()
+            .lock()
+            .expect("CURRENT_CHILD mutex poisoned");
+        let child = match SharedChild::spawn(&mut cmd) {
+            Ok(process) => Arc::new(process),
+            Err(_) => return ERR_SPAWN,
+        };
         *guard = Some(Arc::clone(&child));
-    }
+        child
+    };
 
     let status = match child.wait() {
         Ok(result) => result,
         Err(_) => {
-            if let Ok(mut guard) = current_child().lock() {
-                *guard = None;
-            }
-            return 1;
+            current_child()
+                .lock()
+                .expect("CURRENT_CHILD mutex poisoned")
+                .take();
+            return ERR_SPAWN;
         }
     };
 
-    if let Ok(mut guard) = current_child().lock() {
-        *guard = None;
+    current_child()
+        .lock()
+        .expect("CURRENT_CHILD mutex poisoned")
+        .take();
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        return status
+            .code()
+            .unwrap_or_else(|| status.signal().map(|s| 128 + s).unwrap_or(ERR_SPAWN));
     }
 
-    status.code().unwrap_or(1)
+    #[cfg(not(unix))]
+    status.code().unwrap_or(ERR_SPAWN)
 }
