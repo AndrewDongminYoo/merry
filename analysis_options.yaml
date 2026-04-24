@@ -178,10 +178,6 @@ linter:
     # https://dart.dev/tools/linter-rules/avoid_types_as_parameter_names
     - avoid_types_as_parameter_names
 
-    # Containers without parameters have no effect and can be removed
-    # https://dart.dev/tools/linter-rules/avoid_unnecessary_containers
-    - avoid_unnecessary_containers
-
     # Unused parameters should be removed
     # https://dart.dev/tools/linter-rules/avoid_unused_constructor_parameters
     - avoid_unused_constructor_parameters
@@ -191,10 +187,6 @@ linter:
     #
     # https://dart.dev/tools/linter-rules/avoid_void_async
     - avoid_void_async
-
-    # Flutter mobile only: Web packages aren't available in mobile flutter apps
-    # https://dart.dev/tools/linter-rules/avoid_web_libraries_in_flutter
-    - avoid_web_libraries_in_flutter
 
     # Use the await keyword only for futures. There is nothing to await in synchronous code
     #
@@ -432,11 +424,6 @@ linter:
     # https://dart.dev/tools/linter-rules/no_leading_underscores_for_local_identifiers
     - no_leading_underscores_for_local_identifiers
 
-    # Flutter only: `createState` shouldn't pass information into the state
-    #
-    # https://dart.dev/tools/linter-rules/no_logic_in_create_state
-    - no_logic_in_create_state
-
     # calling `runtimeType` may be a performance problem
     # Dart SDK: >= 2.8.0-dev.10.0 • (Linter v0.1.110)
     # https://dart.dev/tools/linter-rules/no_runtimeType_toString
@@ -659,27 +646,10 @@ linter:
     # https://dart.dev/tools/linter-rules/secure_pubspec_urls
     - secure_pubspec_urls
 
-    # Flutter only, prefer SizedBox over Container which offers a const constructors
-    # Dart SDK: >= 2.9.0-4.0.dev • (Linter v0.1.115)
-    # https://dart.dev/tools/linter-rules/sized_box_for_whitespace
-    - sized_box_for_whitespace
-
-    # Use the SizeBox.expand or SizeBox.shrink constructor instead of setting both width and height
-    # to `0` or `double.infinity`
-    #
-    # Linter v1.15
-    # https://dart.dev/tools/linter-rules/sized_box_shrink_expand
-    - sized_box_shrink_expand
-
     # Follow dart style use triple slashes
     #
     # https://dart.dev/tools/linter-rules/slash_for_doc_comments
     - slash_for_doc_comments
-
-    # Flutter only, always put child last
-    #
-    # https://dart.dev/tools/linter-rules/sort_child_properties_last
-    - sort_child_properties_last
 
     # Any sorting is better than no sorting
     # https://dart.dev/tools/linter-rules/sort_pub_dependencies
@@ -876,19 +846,6 @@ linter:
     # https://dart.dev/tools/linter-rules/unrelated_type_equality_checks
     - unrelated_type_equality_checks
 
-    # Very useful in preventing Flutter BuildContext bugs in async callbacks
-    #
-    # Dart SDK: 2.13.0 • (Linter v1.1.0)
-    #
-    # https://dart.dev/tools/linter-rules/use_build_context_synchronously
-    - use_build_context_synchronously
-
-    # Replace Container with ColoredBox to be able to use the const constructor
-    #
-    # Linter v1.19.1
-    # https://dart.dev/tools/linter-rules/use_colored_box
-    - use_colored_box
-
     # Use the [Enhanced Enum Classes](https://github.com/dart-lang/language/blob/master/accepted/future-releases/enhanced-enums/feature-specification.md) feature instead of classes with static members.
     #
     # This check is very precise, it's rather unlikely to have false positives.
@@ -896,11 +853,6 @@ linter:
     # Linter v1.19.1
     # https://dart.dev/tools/linter-rules/use_enums
     - use_enums
-
-    # Always use hex syntax Color(0x00000001), never Color(1)
-    #
-    # https://dart.dev/tools/linter-rules/use_full_hex_values_for_flutter_colors
-    - use_full_hex_values_for_flutter_colors
 
     # Always use generic function type syntax, don't mix styles
     #
@@ -1002,11 +954,6 @@ linter:
     # Dart SDK: >= 2.0.0 • (Linter v0.1.25)
     # https://dart.dev/tools/linter-rules/literal_only_boolean_expressions
     - literal_only_boolean_expressions
-
-    # Adding a key without using it isn't helpful in applications, only for the Flutter SDK
-    # Dart SDK: >= 2.8.0-dev.1.0 • (Linter v0.1.108)
-    # https://dart.dev/tools/linter-rules/use_key_in_widget_constructors
-    - use_key_in_widget_constructors
 
 analyzer:
   language:
