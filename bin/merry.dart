@@ -39,10 +39,8 @@ Future<int> runMerry(List<String> arguments) async {
       handleError(error);
       return 1;
     } catch (exception) {
-      if (exception is UsageException &&
-          exception.message.startsWith('Could not find a command named')) {
-        final exitCode = runMerry(['run', ...arguments]);
-        return exitCode;
+      if (exception is UsageException && exception.message.startsWith('Could not find a command named')) {
+        return await runMerry(['run', ...arguments]);
       } else {
         stderr.writeln(exception);
         return 1;

@@ -37,8 +37,9 @@ String? get currentPlatformKey {
 ///
 /// Can accept a `List` or a `String`.
 List<String> _toStringList(dynamic input) {
-  if (input is List) return input.toList().map((e) => e.toString()).toList();
-  return [input as String];
+  if (input is List) return input.map((e) => e.toString()).toList();
+  if (input is String) return [input];
+  throw ArgumentError.value(input, '(scripts)', 'must be a String or List');
 }
 
 /// A typical script definition.

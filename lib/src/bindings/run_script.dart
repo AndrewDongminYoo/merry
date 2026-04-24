@@ -45,11 +45,13 @@ Future<int> runScript(String script) async {
 }
 
 ffi.DynamicLibrary? _dylib;
-int Function(ffi.Pointer<Utf8>)? _nativeRunScriptFn;
+Future<int Function(ffi.Pointer<Utf8>)>? _initFuture;
 
-Future<int Function(ffi.Pointer<Utf8>)> _resolveRunScriptFn() async {
-  if (_nativeRunScriptFn != null) return _nativeRunScriptFn!;
+// Returning the same Future for concurrent callers prevents double-initialization
+// across await suspension points in Dart's single-threaded event loop.
+Future<int Function(ffi.Pointer<Utf8>)> _resolveRunScriptFn() => _initFuture ??= _initRunScriptFn();
 
+Future<int Function(ffi.Pointer<Utf8>)> _initRunScriptFn() async {
   final resolvedPackageUri = await Isolate.resolvePackageUri(
     Uri.parse(packageUri),
   );
@@ -70,11 +72,9 @@ Future<int Function(ffi.Pointer<Utf8>)> _resolveRunScriptFn() async {
     );
   }
 
-  _nativeRunScriptFn = _dylib!
+  return _dylib!
       .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
         'run_script',
       )
       .asFunction<int Function(ffi.Pointer<Utf8>)>();
-
-  return _nativeRunScriptFn!;
 }
