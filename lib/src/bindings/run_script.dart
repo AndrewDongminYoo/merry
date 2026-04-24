@@ -1,7 +1,7 @@
 import 'dart:ffi' as ffi;
 import 'dart:isolate' show Isolate;
 
-import 'package:ffi/ffi.dart' show StringUtf8Pointer, Utf8;
+import 'package:ffi/ffi.dart' show StringUtf8Pointer, Utf8, malloc;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:path/path.dart' as path;
 
@@ -35,6 +35,21 @@ String getBlobFilename() {
 
 /// Run a given input string in console in native code via dart ffi
 Future<int> runScript(String script) async {
+  final nativeRunScriptFn = await _resolveRunScriptFn();
+  final scriptPtr = script.toNativeUtf8();
+  try {
+    return nativeRunScriptFn(scriptPtr);
+  } finally {
+    malloc.free(scriptPtr);
+  }
+}
+
+ffi.DynamicLibrary? _dylib;
+int Function(ffi.Pointer<Utf8>)? _nativeRunScriptFn;
+
+Future<int Function(ffi.Pointer<Utf8>)> _resolveRunScriptFn() async {
+  if (_nativeRunScriptFn != null) return _nativeRunScriptFn!;
+
   final resolvedPackageUri = await Isolate.resolvePackageUri(
     Uri.parse(packageUri),
   );
@@ -46,9 +61,8 @@ Future<int> runScript(String script) async {
   }
 
   final objectFilePath = resolvedPackageUri.resolve(path.join(blobsPath, getBlobFilename())).toFilePath();
-  late ffi.DynamicLibrary dylib;
   try {
-    dylib = ffi.DynamicLibrary.open(objectFilePath);
+    _dylib ??= ffi.DynamicLibrary.open(objectFilePath);
   } catch (e) {
     throw MerryError(
       type: ErrorCode.invalidBlob,
@@ -56,11 +70,11 @@ Future<int> runScript(String script) async {
     );
   }
 
-  final nativeRunScriptFn = dylib
+  _nativeRunScriptFn = _dylib!
       .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
         'run_script',
       )
       .asFunction<int Function(ffi.Pointer<Utf8>)>();
 
-  return nativeRunScriptFn(script.toNativeUtf8());
+  return _nativeRunScriptFn!;
 }
