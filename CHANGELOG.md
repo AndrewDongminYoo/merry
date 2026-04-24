@@ -1,3 +1,32 @@
+## [2.1.0] - 2026-04-25
+
+### Added
+
+- `merry ls --output=json` — Machine-readable JSON output listing all scripts
+  with `name`, `commands`, `description`, `workdir`, `hooks`, and `hook_for`
+  fields; use `--output=tree` (default) for the existing human-readable tree
+
+### Changed
+
+- JSON output is indented with 2 spaces for readability
+- FFI native library is now loaded once per process, reducing per-call overhead
+
+### Fixed
+
+- `run_script` now handles a null pointer and invalid UTF-8 gracefully instead
+  of panicking, making script execution more resilient
+- `getPaths()` correctly includes a group key when all its sub-keys are
+  metadata entries (e.g. a map containing only `(description)`)
+
+### Internal
+
+- CI: migrate blob build runners away from retired GitHub-hosted images
+- CI: add required workflow permissions
+- Refactor `Pubspec` and `ScriptsRegistry` to use instance fields instead of
+  static state, improving isolation and testability
+- Refactor test suite to remove shared static state between test cases
+- Free native UTF-8 buffer after FFI call to prevent memory leak
+
 ## 2.0.0
 
 **Merry** is a maintained fork of [derry](https://pub.dev/packages/derry) by
