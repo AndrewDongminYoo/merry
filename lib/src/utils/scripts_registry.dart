@@ -18,6 +18,8 @@ import 'package:merry/utils.dart'
         scriptsDefinitionKey,
         substituteVariables;
 
+final _metaKeyPattern = RegExp(r'^\(\w+\)$');
+
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
 
@@ -25,40 +27,38 @@ String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
 /// to work with them.
 class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
-  static JsonMap? scripts;
+  final JsonMap scripts;
 
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
-  ScriptsRegistry(JsonMap scriptsMap) {
-    scripts ??= scriptsMap;
-  }
+  ScriptsRegistry(JsonMap scriptsMap) : scripts = scriptsMap;
 
   /// A list of all possible paths,
   /// used as a mean of memoization.
-  static List<String>? paths;
+  List<String>? _paths;
 
   /// Returns all valid paths to access values from the scripts map.
   List<String> getPaths() {
-    return paths ??= scripts!.getPaths();
+    return _paths ??= scripts.getPaths();
   }
 
   /// Previous search results,
   /// used as a mean of memoization.
-  static Map<String, dynamic> searchResults = {};
+  final Map<String, dynamic> _searchResults = {};
 
   /// Searches for a given path in the scripts map.
   dynamic lookup(String path) {
-    return searchResults[path] ??= scripts!.lookup(path);
+    return _searchResults[path] ??= scripts.lookup(path);
   }
 
   /// Previously serialized definitions,
   /// used as a mean of memoization.
-  static Map<String, Definition> serializedDefinitions = {};
+  final Map<String, Definition> _serializedDefinitions = {};
 
   /// Get a serialized [Definition] for a script string if it exists.
   /// This function will throw errors if the script is not defined
   /// or if the script is not valid.
   Definition getDefinition(String scriptString) {
-    if (!serializedDefinitions.containsKey(scriptString)) {
+    if (!_serializedDefinitions.containsKey(scriptString)) {
       final scriptFound = lookup(scriptString);
 
       /// for when script is not defined at all
@@ -84,10 +84,10 @@ class ScriptsRegistry {
         if (platformKey != null) {
           final platformScripts = scriptFound[platformKey];
           if (platformScripts != null && (platformScripts is List || platformScripts is String)) {
-            serializedDefinitions[scriptString] = Definition.from(
+            _serializedDefinitions[scriptString] = Definition.from(
               platformScripts,
             );
-            return serializedDefinitions[scriptString]!;
+            return _serializedDefinitions[scriptString]!;
           }
         }
 
@@ -98,10 +98,10 @@ class ScriptsRegistry {
           // check for (default) key to support default scripts in nested groups
           final defaultScript = scriptFound[defaultDefinitionKey];
           if (defaultScript != null && (defaultScript is List || defaultScript is String)) {
-            serializedDefinitions[scriptString] = Definition.from(
+            _serializedDefinitions[scriptString] = Definition.from(
               defaultScript,
             );
-            return serializedDefinitions[scriptString]!;
+            return _serializedDefinitions[scriptString]!;
           }
 
           throw MerryError(
@@ -111,45 +111,44 @@ class ScriptsRegistry {
         }
       }
 
-      serializedDefinitions[scriptString] = Definition.from(scriptFound);
+      _serializedDefinitions[scriptString] = Definition.from(scriptFound);
     }
 
-    return serializedDefinitions[scriptString]!;
+    return _serializedDefinitions[scriptString]!;
   }
 
   /// Previously constructed references,
   /// used as a mean of memoization.
-  static Map<String, Reference> references = {};
+  final Map<String, Reference> _references = {};
 
   /// Lazily-collected variable map from all `(variables)` sections.
-  static Map<String, String>? variables;
+  Map<String, String>? _variables;
 
   /// Returns the collected variable map, building it lazily on first call.
   Map<String, String> getVariables() {
-    return variables ??= collectVariables(scripts!);
+    return _variables ??= collectVariables(scripts);
   }
 
   /// Compute [Reference] parts from a script string.
   Reference getReference(String scriptString) {
-    return references[scriptString] ??= Reference.from(scriptString);
+    return _references[scriptString] ??= Reference.from(scriptString);
   }
 
   /// Lazily-built map of alias → canonical script path.
-  static Map<String, String>? aliasMap;
+  Map<String, String>? _aliasMap;
 
   /// Builds a flat alias → canonical path map by recursively scanning [map].
   Map<String, String> _collectAliases(JsonMap map, String prefix) {
     final result = <String, String>{};
-    final metaPattern = RegExp(r'^\(\w+\)$');
 
     for (final key in map.keys) {
-      if (metaPattern.hasMatch(key)) continue;
+      if (_metaKeyPattern.hasMatch(key)) continue;
 
       final fullPath = prefix.isEmpty ? key : '$prefix $key';
       final value = map[key];
 
       if (value is Map) {
-        final jsonValue = value is JsonMap ? value : value.toJsonMap();
+        final jsonValue = value.asJsonMap();
         final raw = jsonValue[aliasesDefinitionKey];
         if (raw != null) {
           final aliasList = raw is List ? raw.map((e) => e.toString()).toList() : [raw.toString()];
@@ -166,12 +165,17 @@ class ScriptsRegistry {
 
   /// Returns the alias map, building it lazily on first call.
   Map<String, String> getAliasMap() {
-    return aliasMap ??= _collectAliases(scripts!, '');
+    return _aliasMap ??= _collectAliases(scripts, '');
   }
 
   /// Returns the canonical script path for [script], resolving aliases.
   String _resolveAlias(String script) {
     return getAliasMap()[script] ?? script;
+  }
+
+  String _escapeDoubleQuotes(String input) {
+    if (Platform.isWindows) return input.replaceAll('"', '""');
+    return input.replaceAll('\\', r'\\').replaceAll('"', r'\"');
   }
 
   /// Runs a script from the scripts map if it exists.
@@ -208,7 +212,8 @@ class ScriptsRegistry {
         );
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
-          final cdCmd = Platform.isWindows ? 'cd /d "\${definition.workdir}" &&' : 'cd "\${definition.workdir}" &&';
+          final escapedWorkdir = _escapeDoubleQuotes(definition.workdir!);
+          final cdCmd = Platform.isWindows ? 'cd /d "$escapedWorkdir" &&' : 'cd "$escapedWorkdir" &&';
           normalizedScript = '$cdCmd $normalizedScript';
         }
         // apply ${VAR} substitution using (variables) definitions and env
