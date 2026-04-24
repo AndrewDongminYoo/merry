@@ -12,20 +12,20 @@ const String scriptsKey = 'scripts';
 /// for .
 class Pubspec {
   /// File path of `pubspec.yaml` in current directory.
-  static final String filePath = path.join(
-    Directory.current.path,
-    pubspecFileName,
-  );
+  final String filePath;
+
+  Pubspec({String? currentDirPath})
+    : filePath = path.join(currentDirPath ?? Directory.current.path, pubspecFileName);
 
   /// Text content of `pubspec.yaml` once it has been read,
   /// used as a mean of memoization.
-  static JsonMap? content;
+  JsonMap? _content;
 
   /// Loads the content of `pubspec.yaml` in current directory,
   /// this methods must be called before any other method.
   Future<JsonMap> getContent() async {
-    content ??= await readYamlMap(filePath).then((map) => map.toJsonMap());
-    return content!;
+    _content ??= await readYamlMap(filePath).then((map) => map.toJsonMap());
+    return _content!;
   }
 
   /// Returns basic information about the package
@@ -40,14 +40,14 @@ class Pubspec {
 
   /// The file path where the scripts are defined,
   /// used as a mean of memoization.
-  static String? source;
+  String? _source;
 
   /// Returns the file path where the scripts are defined
   /// which can be either `pubspec.yaml` or a file path
   /// defined in `pubspec.yaml`.
   Future<String> getSource() async {
-    source ??= await _getSourceUncached();
-    return source!;
+    _source ??= await _getSourceUncached();
+    return _source!;
   }
 
   Future<String> _getSourceUncached() async {
@@ -69,13 +69,13 @@ class Pubspec {
 
   /// A map of scripts defined in `pubspec.yaml`,
   /// used as a mean of memoization.
-  static JsonMap? scripts;
+  JsonMap? _scripts;
 
   /// Returns a map of scripts defined in `pubspec.yaml`
   /// or the scripts from the file path defined in `pubspec.yaml`.
   Future<JsonMap> getScripts() async {
-    scripts ??= await _getScriptsUncached();
-    return scripts!;
+    _scripts ??= await _getScriptsUncached();
+    return _scripts!;
   }
 
   Future<JsonMap> _getScriptsUncached() async {

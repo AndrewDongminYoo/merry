@@ -16,28 +16,31 @@ extension JsonMapExtension on JsonMap {
   List<String> getPaths() {
     final self = this;
     final result = <String>[];
-    for (final k in self.keys) {
-      if (self[k] is JsonMap) {
-        result.addAll((self[k] as JsonMap).getPaths().map((v) => '$k $v'));
+    final keys = self.keys.toList()..sort();
+    for (final k in keys) {
+      final value = self[k];
+      if (value is Map) {
+        final nestedMap = value is JsonMap ? value : value.toJsonMap();
+        result.addAll(nestedMap.getPaths().map((v) => '$k $v'));
       } else if (RegExp(r'\(\w+\)').matchAsPrefix(k) != null) {
-        result.add('');
+        continue;
       } else {
         result.add(k);
       }
     }
-    return result.map((v) => v.trim()).toSet().toList();
+    return result.map((v) => v.trim()).where((v) => v.isNotEmpty).toSet().toList()..sort();
   }
 
   /// Searches for a given path in the map.
   dynamic lookup(String path) {
-    var data = this;
+    JsonMap data = this;
     final keys = path.trim().split(' ');
     for (final entry in keys.asMap().entries) {
       final isLastKey = entry.key == keys.length - 1;
       final key = entry.value;
       final value = data[key];
-      if (!isLastKey && value is JsonMap) {
-        data = value;
+      if (!isLastKey && value is Map) {
+        data = value is JsonMap ? value : value.toJsonMap();
         continue;
       }
       return value;

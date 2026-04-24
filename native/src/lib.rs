@@ -13,8 +13,14 @@ fn current_child() -> &'static Mutex<Option<Arc<SharedChild>>> {
 
 #[no_mangle]
 pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
+    if ptr.is_null() {
+        return 2;
+    }
     let c_str = unsafe { CStr::from_ptr(ptr) };
-    let script: String = String::from(c_str.to_str().unwrap());
+    let script = match c_str.to_str() {
+        Ok(value) => String::from(value),
+        Err(_) => return 3,
+    };
 
     println!("$ {}", script.dimmed());
     println!();
@@ -25,11 +31,11 @@ pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
     #[cfg(not(target_os = "windows"))]
     let shell: &str = "bash";
 
-    let option: &str = match shell {
-        "cmd" => "/C",
-        "bash" => "-c",
-        _ => "",
-    };
+    #[cfg(target_os = "windows")]
+    let option: &str = "/C";
+
+    #[cfg(not(target_os = "windows"))]
+    let option: &str = "-c";
 
     // Register the Ctrl+C handler exactly once for the process lifetime.
     // Subsequent calls return CtrlcError::MultipleHandlers, which we ignore.
@@ -45,15 +51,28 @@ pub extern "C" fn run_script(ptr: *const c_char) -> i32 {
 
     let mut cmd = Command::new(shell);
     cmd.arg(option).arg(script);
-    let child = Arc::new(
-        SharedChild::spawn(&mut cmd).expect("Rust: Couldn't spawn the shared_child process!"),
-    );
+    let child = match SharedChild::spawn(&mut cmd) {
+        Ok(process) => Arc::new(process),
+        Err(_) => return 1,
+    };
 
-    *current_child().lock().unwrap() = Some(Arc::clone(&child));
+    if let Ok(mut guard) = current_child().lock() {
+        *guard = Some(Arc::clone(&child));
+    }
 
-    let status = child.wait().expect("Rust: Process can't be awaited");
+    let status = match child.wait() {
+        Ok(result) => result,
+        Err(_) => {
+            if let Ok(mut guard) = current_child().lock() {
+                *guard = None;
+            }
+            return 1;
+        }
+    };
 
-    *current_child().lock().unwrap() = None;
+    if let Ok(mut guard) = current_child().lock() {
+        *guard = None;
+    }
 
     status.code().unwrap_or(1)
 }
