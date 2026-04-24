@@ -1,3 +1,25 @@
+## [2.1.1] - 2026-04-25
+
+### Fixed
+
+- Processes terminated by a signal now report the conventional `128 + signal_number`
+  exit code on Unix (e.g. 130 for Ctrl+C / SIGINT) instead of always returning 1
+- Script definitions with a non-string, non-list `(scripts)` value now throw a
+  descriptive `ArgumentError` instead of a cryptic runtime cast failure
+
+### Internal
+
+- FFI: close Ctrl+C race window between `SharedChild::spawn` and `CURRENT_CHILD`
+  storage; add named return-code constants; swap four `#[cfg]` blocks for a single
+  tuple expression; replace silent mutex-poison swallow with `expect()`
+- Dart: parameterize `CommandRunner` and all `Command` subclasses as `<int>`;
+  make every `run()` return `Future<int>`; add explicit type arguments throughout
+  to satisfy `strict-raw-types` and `strict-inference` analyzer options
+- Remove unused `console` and `collection` dependencies
+- Remove Flutter-only lint rules from `analysis_options.yaml`
+- Integrate Trunk.io for linting and formatting
+- Upgrade Cargo dependencies and update precompiled native blobs
+
 ## [2.1.0] - 2026-04-25
 
 ### Added
