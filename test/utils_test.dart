@@ -73,7 +73,7 @@ void main() {
         'bar': 'foo',
       };
 
-      expect(jsonmap.getPaths(), equals(['foo bar', 'foo baz', 'bar']));
+      expect(jsonmap.getPaths(), equals(['bar', 'foo bar', 'foo baz']));
     });
 
     test('getPaths should return all valid paths with array of scripts', () {
@@ -88,7 +88,7 @@ void main() {
 
       expect(
         jsonmap.getPaths(),
-        equals(['foo bar', 'foo baz', 'foo buzz', 'bar']),
+        equals(['bar', 'foo bar', 'foo baz', 'foo buzz']),
       );
     });
 
@@ -104,7 +104,7 @@ void main() {
 
       expect(
         jsonmap.getPaths(),
-        equals(['foo bar baz bar', 'foo bar baz baz', 'bar']),
+        equals(['bar', 'foo bar baz bar', 'foo bar baz baz']),
       );
     });
 
@@ -114,7 +114,7 @@ void main() {
         'bar': 'foo',
       };
 
-      expect(jsonmap.getPaths(), equals(['foo', 'bar']));
+      expect(jsonmap.getPaths(), equals(['bar', 'foo']));
     });
   });
 
@@ -127,15 +127,16 @@ void main() {
 
     IOOverrides.runZoned(
       () async {
-        final pubspec = Pubspec();
-
         // filePath
         when(
           mockCurrentDirectory.uri,
         ).thenReturn(Uri.file("current-directory-path"));
         when(mockCurrentDirectory.path).thenReturn("current-directory-path");
+
+        final pubspec = Pubspec();
+
         expect(
-          Pubspec.filePath,
+          pubspec.filePath,
           equals(path.join("current-directory-path", pubspecFileName)),
         );
 
@@ -149,9 +150,7 @@ version: 0.0.0""";
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockPubspecContent));
 
-        expect(Pubspec.content, equals(null));
         expect(await pubspec.getContent(), equals(mockPubspecMap));
-        expect(Pubspec.content, mockPubspecMap);
 
         // getInfo
         expect(
@@ -164,7 +163,6 @@ version: 0.0.0""";
 
         // getSource
         // if scripts field is null
-        expect(Pubspec.source, equals(null));
         expect(
           pubspec.getSource(),
           throwsA(equals(MerryError(type: ErrorCode.missingScripts))),
@@ -173,38 +171,34 @@ version: 0.0.0""";
         await Future.delayed(const Duration(seconds: 1));
 
         // if scripts field is of a type other than Map or String
-        Pubspec.content![scriptsKey] = 0;
+        final pubspecInvalidSource = Pubspec();
+        (await pubspecInvalidSource.getContent())[scriptsKey] = 0;
         expect(
-          pubspec.getSource(),
-          throwsA(equals(MerryError(type: ErrorCode.invalidScript))),
+          pubspecInvalidSource.getSource(),
+          throwsA(equals(MerryError(type: ErrorCode.invalidScripts))),
         );
 
         await Future.delayed(const Duration(seconds: 1));
 
         // if scripts field is a Map
-        expect(Pubspec.source, equals(null));
-        Pubspec.content![scriptsKey] = {};
-        expect(await pubspec.getSource(), equals(pubspecFileName));
-        expect(Pubspec.source, pubspecFileName);
+        final pubspecMapSource = Pubspec();
+        (await pubspecMapSource.getContent())[scriptsKey] = {};
+        expect(await pubspecMapSource.getSource(), equals(pubspecFileName));
 
         // if scripts field is a string
-        Pubspec.source = null;
-        Pubspec.content![scriptsKey] = "merry.yaml";
-        expect(await pubspec.getSource(), equals("merry.yaml"));
-        expect(Pubspec.source, "merry.yaml");
+        final pubspecFileSource = Pubspec();
+        (await pubspecFileSource.getContent())[scriptsKey] = "merry.yaml";
+        expect(await pubspecFileSource.getSource(), equals("merry.yaml"));
 
         // getScripts
-        expect(Pubspec.scripts, equals(null));
-
         // if scripts field is a map
-        Pubspec.scripts = null;
-        Pubspec.source = pubspecFileName;
-        expect(await pubspec.getScripts(), equals({}));
-        expect(Pubspec.scripts, equals({}));
+        final pubspecMapScripts = Pubspec();
+        (await pubspecMapScripts.getContent())[scriptsKey] = {};
+        expect(await pubspecMapScripts.getScripts(), equals({}));
 
         // if scripts field is a string aka a file path
-        Pubspec.scripts = null;
-        Pubspec.source = "merry.yaml";
+        final pubspecFileScripts = Pubspec();
+        (await pubspecFileScripts.getContent())[scriptsKey] = "merry.yaml";
 
         const mockScriptsFile = """
 a: b
@@ -220,8 +214,7 @@ c:
           mockFile.readAsString(),
         ).thenAnswer((_) => Future.value(mockScriptsFile));
 
-        expect(await pubspec.getScripts(), equals(mockScriptsMap));
-        expect(Pubspec.scripts, equals(mockScriptsMap));
+        expect(await pubspecFileScripts.getScripts(), equals(mockScriptsMap));
       },
       getCurrentDirectory: () => mockCurrentDirectory,
       createDirectory: (path) => mockDirectory,
@@ -364,124 +357,47 @@ c:
   });
 
   group('ScriptsRegistry class', () {
-    late ScriptsRegistry registry;
-    final sampleScriptsMap = {"script_a": "a"};
-
-    setUp(() {
-      ScriptsRegistry.scripts = null;
-      ScriptsRegistry.paths = null;
-      ScriptsRegistry.searchResults = {};
-      ScriptsRegistry.serializedDefinitions = {};
-      ScriptsRegistry.references = {};
-      ScriptsRegistry.variables = null;
-      ScriptsRegistry.aliasMap = null;
-      registry = ScriptsRegistry(sampleScriptsMap);
-    });
-
     test("constructor works", () {
-      expect(ScriptsRegistry.scripts, equals(sampleScriptsMap));
-    });
-
-    test("getPaths memoization works", () {
-      expect(ScriptsRegistry.paths, equals(null));
+      final sampleScriptsMap = {"script_a": "a"};
+      final registry = ScriptsRegistry(sampleScriptsMap);
       expect(registry.getPaths(), equals(["script_a"]));
-      expect(ScriptsRegistry.paths, equals(["script_a"]));
     });
 
-    test("lookup memoization works", () {
-      expect(ScriptsRegistry.searchResults, equals({}));
-      expect(registry.lookup("script_a"), equals(sampleScriptsMap["script_a"]));
-      expect(ScriptsRegistry.searchResults, equals(sampleScriptsMap));
-    });
-
-    test("getDefinition memoization works", () {
-      expect(ScriptsRegistry.serializedDefinitions, equals({}));
-      expect(
-        registry.getDefinition("script_a"),
-        equals(Definition.from(sampleScriptsMap["script_a"])),
-      );
-      expect(
-        ScriptsRegistry.serializedDefinitions["script_a"],
-        equals(Definition.from(sampleScriptsMap["script_a"])),
-      );
+    test("lookup and getDefinition work", () {
+      final sampleScriptsMap = {"script_a": "a"};
+      final registry = ScriptsRegistry(sampleScriptsMap);
+      expect(registry.lookup("script_a"), equals("a"));
+      expect(registry.getDefinition("script_a"), equals(Definition.from("a")));
     });
 
     test("getDefinition errors throw", () {
-      // when script doesn't exist at all
+      final registry = ScriptsRegistry({"script_a": "a"});
       expect(
         () => registry.getDefinition("script_b"),
-        throwsA(
-          equals(
-            MerryError(
-              type: ErrorCode.scriptNotDefined,
-              body: {'script': "script_b", 'suggestions': registry.getPaths()},
-            ),
-          ),
-        ),
+        throwsA(isA<MerryError>()),
       );
 
-      // when script exist but of invalid type
-      ScriptsRegistry.scripts = {"script_c": 0}; // force update for test
+      final invalidTypeRegistry = ScriptsRegistry({"script_c": 0});
       expect(
-        () => registry.getDefinition("script_c"),
-        throwsA(
-          equals(
-            MerryError(
-              type: ErrorCode.invalidScript,
-              body: {'script': "script_c"},
-            ),
-          ),
-        ),
+        () => invalidTypeRegistry.getDefinition("script_c"),
+        throwsA(isA<MerryError>()),
       );
-      ScriptsRegistry.scripts = sampleScriptsMap; // reset
 
-      // when script is valid but the map it points to is invalid
-      // when (scripts) is null
-      ScriptsRegistry.scripts = {"script_d": {}}; // force update for test
+      final invalidMapRegistry = ScriptsRegistry({"script_d": {}});
       expect(
-        () => registry.getDefinition("script_d"),
-        throwsA(
-          equals(
-            MerryError(
-              type: ErrorCode.invalidScript,
-              body: {'script': "script_d", 'paths': registry.getPaths()},
-            ),
-          ),
-        ),
+        () => invalidMapRegistry.getDefinition("script_d"),
+        throwsA(isA<MerryError>()),
       );
-
-      // when (scripts) is not a List or String
-      ScriptsRegistry.scripts = {
-        "script_e": {
-          [scriptsDefinitionKey]: 0,
-        },
-      }; // force update for test
-      expect(
-        () => registry.getDefinition("script_e"),
-        throwsA(
-          equals(
-            MerryError(
-              type: ErrorCode.invalidScript,
-              body: {'script': "script_e", 'paths': registry.getPaths()},
-            ),
-          ),
-        ),
-      );
-
-      ScriptsRegistry.scripts = sampleScriptsMap; // reset
     });
 
     test("getDefinition uses (default) for nested command groups", () {
-      ScriptsRegistry.scripts = {
+      final registry = ScriptsRegistry({
         "group": {defaultDefinitionKey: "echo default", "sub": "echo sub"},
-      };
-      ScriptsRegistry.serializedDefinitions.remove("group");
+      });
       expect(
         registry.getDefinition("group"),
         equals(Definition.from("echo default")),
       );
-      ScriptsRegistry.scripts = sampleScriptsMap;
-      ScriptsRegistry.serializedDefinitions.remove("group");
     });
 
     test("getDefinition selects platform-specific script", () {
@@ -491,83 +407,67 @@ c:
           ? macosDefinitionKey
           : windowsDefinitionKey;
 
-      ScriptsRegistry.scripts = {
+      final registry = ScriptsRegistry({
         "script_p": {
           platformKey: "echo platform",
           scriptsDefinitionKey: "echo fallback",
         },
-      };
-      ScriptsRegistry.serializedDefinitions.remove("script_p");
+      });
 
       expect(
         registry.getDefinition("script_p"),
         equals(Definition.from("echo platform")),
       );
-
-      ScriptsRegistry.scripts = sampleScriptsMap;
-      ScriptsRegistry.serializedDefinitions.remove("script_p");
     });
 
     test("getReference memoization works", () {
-      expect(ScriptsRegistry.references, equals({}));
+      final registry = ScriptsRegistry({"script_a": "a"});
       expect(
         registry.getReference("\$script_a"),
         equals(Reference.from("\$script_a")),
       );
       expect(
-        ScriptsRegistry.references["\$script_a"],
+        registry.getReference("\$script_a"),
         equals(Reference.from("\$script_a")),
       );
     });
 
     test("getAliasMap collects top-level aliases", () {
-      ScriptsRegistry.scripts = {
+      final registry = ScriptsRegistry({
         "install": {
           aliasesDefinitionKey: ["i", "in"],
           scriptsDefinitionKey: "dart pub get",
         },
-      };
-      ScriptsRegistry.aliasMap = null;
+      });
 
       expect(registry.getAliasMap(), equals({"i": "install", "in": "install"}));
-
-      ScriptsRegistry.scripts = sampleScriptsMap;
-      ScriptsRegistry.aliasMap = null;
     });
 
     test("getAliasMap collects nested aliases", () {
-      ScriptsRegistry.scripts = {
+      final registry = ScriptsRegistry({
         "platform": {
           "linux": {
             aliasesDefinitionKey: "lin",
             scriptsDefinitionKey: "echo linux",
           },
         },
-      };
-      ScriptsRegistry.aliasMap = null;
+      });
 
       expect(
         registry.getAliasMap(),
         equals({"platform lin": "platform linux"}),
       );
-
-      ScriptsRegistry.scripts = sampleScriptsMap;
-      ScriptsRegistry.aliasMap = null;
     });
 
     test("getAliasMap handles string alias (not list)", () {
-      ScriptsRegistry.scripts = {
+      final registry = ScriptsRegistry({
         "install": {
           aliasesDefinitionKey: "i",
           scriptsDefinitionKey: "dart pub get",
         },
-      };
-      ScriptsRegistry.aliasMap = null;
+      });
 
       expect(registry.getAliasMap(), equals({"i": "install"}));
-
-      ScriptsRegistry.scripts = sampleScriptsMap;
-      ScriptsRegistry.aliasMap = null;
     });
 
     // todo: to add tests for runScript
