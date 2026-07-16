@@ -111,6 +111,11 @@ jobs:
           merge-multiple: true
           path: lib/src/blobs
 
+      # Stamp the sources these blobs were built from, so check-blobs.sh can
+      # tell later whether native/ has moved on without them.
+      - name: Record native source hash
+        run: .github/scripts/check-blobs.sh write
+
       - run: git status
 
       - uses: peter-evans/create-pull-request@v6
