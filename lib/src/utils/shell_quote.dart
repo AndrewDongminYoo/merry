@@ -16,3 +16,42 @@ String shellQuote(String arg) {
   if (Platform.isWindows) return '"${arg.replaceAll('"', r'\"')}"';
   return "'${arg.replaceAll("'", r"'\''")}'";
 }
+
+/// Splits a shell command tail into the words the shell would pass as
+/// arguments, so `--message "hello world"` becomes two words rather than
+/// three.
+///
+/// [shellQuote] round-trips the result: quoting each word back into a command
+/// reproduces the same argument list.
+///
+/// ponytail: quotes and whitespace only. A backslash stays a literal character
+/// — treating it as an escape would eat Windows path separators, and a config
+/// can always use quotes instead. An unterminated quote takes the rest of the
+/// input as one word rather than failing.
+List<String> shellSplit(String input) {
+  final words = <String>[];
+  final current = StringBuffer();
+  var hasWord = false;
+  String? openQuote;
+
+  for (final char in input.split('')) {
+    if (openQuote == null && (char == ' ' || char == '\t')) {
+      if (hasWord) {
+        words.add(current.toString());
+        current.clear();
+        hasWord = false;
+      }
+    } else if (openQuote == null && (char == "'" || char == '"')) {
+      openQuote = char;
+      hasWord = true;
+    } else if (openQuote == char) {
+      openQuote = null;
+    } else {
+      current.write(char);
+      hasWord = true;
+    }
+  }
+
+  if (hasWord) words.add(current.toString());
+  return words;
+}

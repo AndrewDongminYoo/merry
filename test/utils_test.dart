@@ -393,6 +393,46 @@ c:
     );
   });
 
+  test("Reference's from factory keeps quoted extras as one argument", () {
+    final reference = Reference.from('\$deploy --message "hello world"');
+    expect(reference.script, equals('deploy'));
+    expect(reference.extra, equals(['--message', 'hello world']));
+
+    // shellQuote round-trips it back into a single shell argument
+    expect(
+      reference.extra.map(shellQuote).join(' '),
+      equals(Platform.isWindows ? '--message "hello world"' : "--message 'hello world'"),
+    );
+  });
+
+  group('shellSplit', () {
+    test('splits on whitespace', () {
+      expect(shellSplit('a b\tc'), equals(['a', 'b', 'c']));
+    });
+
+    test('keeps quoted runs together', () {
+      expect(shellSplit('--m "hello world"'), equals(['--m', 'hello world']));
+      expect(shellSplit("--m 'hello world'"), equals(['--m', 'hello world']));
+    });
+
+    test('joins quotes adjacent to a word', () {
+      expect(shellSplit('--m="hello world"'), equals(['--m=hello world']));
+    });
+
+    test('keeps an empty quoted string as a word', () {
+      expect(shellSplit("a '' b"), equals(['a', '', 'b']));
+    });
+
+    test('takes an unterminated quote as the rest of the input', () {
+      expect(shellSplit('a "b c'), equals(['a', 'b c']));
+    });
+
+    test('returns no words for an empty or blank input', () {
+      expect(shellSplit(''), isEmpty);
+      expect(shellSplit('   '), isEmpty);
+    });
+  });
+
   group('ScriptsRegistry class', () {
     test("constructor works", () {
       final sampleScriptsMap = {"script_a": "a"};
