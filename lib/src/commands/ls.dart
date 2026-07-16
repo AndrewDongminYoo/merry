@@ -54,9 +54,7 @@ class ListCommand extends Command<int> {
   @override
   Future<int> run() async {
     final argResults = super.argResults!;
-    if (argResults.rest.isNotEmpty) {
-      throw UsageException('Unexpected argument(s): ${argResults.rest.join(' ')}', usage);
-    }
+    rejectRest(argResults, usage);
     final showDescriptions = argResults['description'] as bool;
     final outputFormat = argResults['output'] as String;
 

@@ -94,10 +94,9 @@ class ScriptsRegistry {
           ...scriptFound,
           scriptsDefinitionKey: scripts,
         });
-        return _serializedDefinitions[scriptString]!;
+      } else {
+        _serializedDefinitions[scriptString] = Definition.from(scriptFound);
       }
-
-      _serializedDefinitions[scriptString] = Definition.from(scriptFound);
     }
 
     return _serializedDefinitions[scriptString]!;
