@@ -24,18 +24,27 @@ String shellQuote(String arg) {
 /// [shellQuote] round-trips the result: quoting each word back into a command
 /// reproduces the same argument list.
 ///
-/// ponytail: quotes and whitespace only. A backslash stays a literal character
-/// — treating it as an escape would eat Windows path separators, and a config
-/// can always use quotes instead. An unterminated quote takes the rest of the
-/// input as one word rather than failing.
+/// A backslash escapes the next character, except inside single quotes and
+/// except on Windows, where `cmd` gives it no such meaning and it has to stay
+/// a path separator.
+///
+/// ponytail: an unterminated quote takes the rest of the input as one word
+/// rather than failing.
 List<String> shellSplit(String input) {
   final words = <String>[];
   final current = StringBuffer();
   var hasWord = false;
+  var escaped = false;
   String? openQuote;
 
   for (final char in input.split('')) {
-    if (openQuote == null && (char == ' ' || char == '\t')) {
+    if (escaped) {
+      current.write(char);
+      escaped = false;
+    } else if (!Platform.isWindows && char == r'\' && openQuote != "'") {
+      escaped = true;
+      hasWord = true;
+    } else if (openQuote == null && (char == ' ' || char == '\t')) {
       if (hasWord) {
         words.add(current.toString());
         current.clear();

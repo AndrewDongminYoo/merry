@@ -423,6 +423,17 @@ c:
       expect(shellSplit("a '' b"), equals(['a', '', 'b']));
     });
 
+    test('treats a backslash as an escape off Windows', () {
+      expect(
+        shellSplit(r'hello\ world'),
+        equals(Platform.isWindows ? [r'hello\', 'world'] : ['hello world']),
+      );
+    });
+
+    test('keeps a backslash literal inside single quotes', () {
+      expect(shellSplit(r"'hello\ world'"), equals([r'hello\ world']));
+    });
+
     test('takes an unterminated quote as the rest of the input', () {
       expect(shellSplit('a "b c'), equals(['a', 'b c']));
     });
