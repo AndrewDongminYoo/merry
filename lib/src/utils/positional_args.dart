@@ -1,22 +1,30 @@
-/// Replaces `$1`, `$2`, etc. in [script] with positional args from [extra].
+import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
+
+/// Replaces `$1`, `$2`, etc. in [script] with positional args from [args].
 ///
 /// Returns a [MapEntry] where [MapEntry.key] is the substituted script and
-/// [MapEntry.value] is the remaining unused extra args.
+/// [MapEntry.value] is the remaining unused args.
 ///
-/// If [script] contains no `$N` tokens, [extra] is returned unchanged so it
-/// can be appended as before (backward-compatible).
-MapEntry<String, String> applyPositionalArgs(String script, String extra) {
+/// Substituted values are shell-quoted, so an arg containing spaces stays a
+/// single argument. If [script] contains no `$N` tokens, [args] is returned
+/// unchanged so it can be appended as before (backward-compatible).
+///
+/// ponytail: `$N` is spliced in as text, so the supported form is a bare
+/// `$N` — a `$N` already written inside quotes (`echo "hi $1"`) carries the
+/// added quotes through into the output. Making both forms work means letting
+/// the shell expand its own positional parameters (`bash -c script -- args`),
+/// which `cmd /C` cannot do.
+MapEntry<String, List<String>> applyPositionalArgs(String script, List<String> args) {
   final positionalPattern = RegExp(r'\$(\d+)');
-  if (!positionalPattern.hasMatch(script)) return MapEntry(script, extra);
+  if (!positionalPattern.hasMatch(script)) return MapEntry(script, args);
 
-  final args = extra.trim().isEmpty ? <String>[] : extra.trim().split(RegExp(r'\s+'));
   final usedIndices = <int>{};
 
   final substituted = script.replaceAllMapped(positionalPattern, (match) {
     final index = int.parse(match.group(1)!) - 1; // $1 → args[0]
     if (index >= 0 && index < args.length) {
       usedIndices.add(index);
-      return args[index];
+      return shellQuote(args[index]);
     }
     return ''; // out-of-range token → empty string
   });
@@ -24,7 +32,7 @@ MapEntry<String, String> applyPositionalArgs(String script, String extra) {
   final remaining = [
     for (var i = 0; i < args.length; i++)
       if (!usedIndices.contains(i)) args[i],
-  ].join(' ');
+  ];
 
   return MapEntry(substituted, remaining);
 }

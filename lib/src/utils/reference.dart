@@ -11,8 +11,8 @@ class Reference extends Equatable {
   /// The script referenced to run.
   final String script;
 
-  /// The extra bit of command to pass down to the script.
-  final String extra;
+  /// The extra arguments to pass down to the script.
+  final List<String> extra;
 
   /// Constructs a constant [Reference] instance.
   const Reference({required this.script, required this.extra});
@@ -24,7 +24,7 @@ class Reference extends Equatable {
     final paths = input.substring(1).split(' ');
 
     final script = paths.first;
-    final extra = paths.sublist(1).join(' ');
+    final extra = paths.sublist(1).where((part) => part.isNotEmpty).toList();
 
     return Reference(
       script: script.split(referenceNestingDelimiter).join(' '),

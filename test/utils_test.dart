@@ -269,33 +269,42 @@ c:
 
   group('applyPositionalArgs', () {
     test('replaces \$1, \$2 with positional args', () {
-      final result = applyPositionalArgs('echo \$1 \$2', 'hello world');
+      final result = applyPositionalArgs('echo \$1 \$2', ['hello', 'world']);
       expect(result.key, equals('echo hello world'));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
     });
 
     test('leaves script unchanged when no \$N tokens present', () {
-      final result = applyPositionalArgs('echo hello', 'world');
+      final result = applyPositionalArgs('echo hello', ['world']);
       expect(result.key, equals('echo hello'));
-      expect(result.value, equals('world'));
+      expect(result.value, equals(['world']));
     });
 
     test('returns remaining unused args', () {
-      final result = applyPositionalArgs('echo \$1', 'hello world');
+      final result = applyPositionalArgs('echo \$1', ['hello', 'world']);
       expect(result.key, equals('echo hello'));
-      expect(result.value, equals('world'));
+      expect(result.value, equals(['world']));
     });
 
     test('replaces out-of-range token with empty string', () {
-      final result = applyPositionalArgs('echo \$1 \$2', 'hello');
+      final result = applyPositionalArgs('echo \$1 \$2', ['hello']);
       expect(result.key, equals('echo hello '));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
     });
 
     test('handles empty extra', () {
-      final result = applyPositionalArgs('echo \$1', '');
+      final result = applyPositionalArgs('echo \$1', []);
       expect(result.key, equals('echo '));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
+    });
+
+    test('quotes an arg containing spaces so it stays a single argument', () {
+      final result = applyPositionalArgs('greet \$1', ['Jane Doe']);
+      expect(
+        result.key,
+        equals(Platform.isWindows ? 'greet "Jane Doe"' : "greet 'Jane Doe'"),
+      );
+      expect(result.value, isEmpty);
     });
   });
 
@@ -364,22 +373,22 @@ c:
   test("Reference's from factory should work", () {
     expect(
       Reference.from("\$script_a"),
-      equals(const Reference(script: "script_a", extra: "")),
+      equals(const Reference(script: "script_a", extra: [])),
     );
 
     expect(
       Reference.from("\$script_a --extra extra"),
-      equals(const Reference(script: "script_a", extra: "--extra extra")),
+      equals(const Reference(script: "script_a", extra: ["--extra", "extra"])),
     );
 
     expect(
       Reference.from("\$script_a:script_b"),
-      equals(const Reference(script: "script_a script_b", extra: "")),
+      equals(const Reference(script: "script_a script_b", extra: [])),
     );
     expect(
       Reference.from("\$script_a:script_b --extra extra"),
       equals(
-        const Reference(script: "script_a script_b", extra: "--extra extra"),
+        const Reference(script: "script_a script_b", extra: ["--extra", "extra"]),
       ),
     );
   });

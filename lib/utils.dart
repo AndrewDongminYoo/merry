@@ -6,4 +6,5 @@ export 'src/utils/pubspec.dart';
 export 'src/utils/read_yaml_map.dart';
 export 'src/utils/reference.dart';
 export 'src/utils/scripts_registry.dart';
+export 'src/utils/shell_quote.dart';
 export 'src/utils/variables.dart';

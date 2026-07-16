@@ -4,6 +4,7 @@ import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
+import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
 import 'package:merry/utils.dart'
     show
         Definition,
@@ -164,7 +165,7 @@ class ScriptsRegistry {
   }
 
   /// Runs a script from the scripts map if it exists.
-  Future<int> runScript(String script, {String extra = ''}) async {
+  Future<int> runScript(String script, {List<String> extra = const []}) async {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
@@ -178,7 +179,7 @@ class ScriptsRegistry {
     return exitCode;
   }
 
-  Future<int> _runScript(String scriptString, {String extra = ''}) async {
+  Future<int> _runScript(String scriptString, {List<String> extra = const []}) async {
     final definition = getDefinition(scriptString);
     var exitCode = 0;
 
@@ -187,7 +188,7 @@ class ScriptsRegistry {
         final ref = getReference(script);
         exitCode = await runScript(
           ref.script,
-          extra: _joinStrings([ref.extra, extra]),
+          extra: [...ref.extra, ...extra],
         );
       } else {
         // replace all \$ with $, they are not valid references
@@ -208,7 +209,7 @@ class ScriptsRegistry {
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
         exitCode = await bindings.runScript(
-          _joinStrings([positional.key, positional.value]),
+          _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
     }
