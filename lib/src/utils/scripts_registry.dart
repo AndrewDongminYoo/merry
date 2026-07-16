@@ -12,9 +12,8 @@ import 'package:merry/utils.dart'
         Reference,
         aliasesDefinitionKey,
         collectVariables,
-        currentPlatformKey,
-        defaultDefinitionKey,
         referencePrefix,
+        runnableScripts,
         scriptsDefinitionKey,
         substituteVariables;
 
@@ -79,36 +78,22 @@ class ScriptsRegistry {
 
       // for when script is a map
       if (scriptFound is Map) {
-        // check for a platform-specific script first
-        final platformKey = currentPlatformKey;
-        if (platformKey != null) {
-          final platformScripts = scriptFound[platformKey];
-          if (platformScripts != null && (platformScripts is List || platformScripts is String)) {
-            _serializedDefinitions[scriptString] = Definition.from(
-              platformScripts,
-            );
-            return _serializedDefinitions[scriptString]!;
-          }
-        }
+        final scripts = runnableScripts(scriptFound);
 
-        final scripts = scriptFound[scriptsDefinitionKey];
-        final validity = scripts != null && (scripts is List || scripts is String);
-
-        if (!validity) {
-          // check for (default) key to support default scripts in nested groups
-          final defaultScript = scriptFound[defaultDefinitionKey];
-          if (defaultScript != null && (defaultScript is List || defaultScript is String)) {
-            _serializedDefinitions[scriptString] = Definition.from(
-              defaultScript,
-            );
-            return _serializedDefinitions[scriptString]!;
-          }
-
+        if (scripts == null) {
           throw MerryError(
             type: ErrorCode.invalidScript,
             body: {'script': scriptString, 'paths': getPaths()},
           );
         }
+
+        // keep the surrounding (description)/(workdir) when the commands come
+        // from a platform or (default) key instead of (scripts)
+        _serializedDefinitions[scriptString] = Definition.from({
+          ...scriptFound,
+          scriptsDefinitionKey: scripts,
+        });
+        return _serializedDefinitions[scriptString]!;
       }
 
       _serializedDefinitions[scriptString] = Definition.from(scriptFound);

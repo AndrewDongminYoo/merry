@@ -33,6 +33,22 @@ String? get currentPlatformKey {
   return null;
 }
 
+/// Whether [input] is a shape that can be parsed as a list of commands.
+bool _isScriptValue(dynamic input) => input is String || input is List;
+
+/// Returns the value that makes [map] directly runnable on the current
+/// platform, or `null` if it only holds nested command groups and metadata.
+///
+/// The current platform key takes precedence over [scriptsDefinitionKey],
+/// which in turn takes precedence over [defaultDefinitionKey].
+dynamic runnableScripts(Map<dynamic, dynamic> map) {
+  final platformKey = currentPlatformKey;
+  if (platformKey != null && _isScriptValue(map[platformKey])) return map[platformKey];
+  if (_isScriptValue(map[scriptsDefinitionKey])) return map[scriptsDefinitionKey];
+  if (_isScriptValue(map[defaultDefinitionKey])) return map[defaultDefinitionKey];
+  return null;
+}
+
 /// Parses a list from yaml input.
 ///
 /// Can accept a `List` or a `String`.

@@ -114,7 +114,35 @@ void main() {
         'bar': 'foo',
       };
 
-      expect(jsonmap.getPaths(), equals(['bar', 'foo']));
+      // 'foo' holds no runnable script, only unknown metadata, so it is not a
+      // path — listing it would make getDefinition throw invalidScript.
+      expect(jsonmap.getPaths(), equals(['bar']));
+    });
+
+    test('getPaths should keep a group that is runnable and has sub-commands', () {
+      final jsonmap = {
+        'build': {
+          '(default)': 'build all',
+          'web': 'build web',
+        },
+        'test': {
+          '(scripts)': 'test all',
+          'unit': 'test unit',
+        },
+      };
+
+      expect(
+        jsonmap.getPaths(),
+        equals(['build', 'build web', 'test', 'test unit']),
+      );
+    });
+
+    test('getPaths should not list a group that only nests sub-commands', () {
+      final jsonmap = {
+        'build': {'web': 'build web'},
+      };
+
+      expect(jsonmap.getPaths(), equals(['build web']));
     });
   });
 
@@ -417,6 +445,50 @@ c:
       expect(
         registry.getDefinition("script_p"),
         equals(Definition.from("echo platform")),
+      );
+    });
+
+    test("getDefinition keeps surrounding metadata for a platform script", () {
+      final platformKey = Platform.isLinux
+          ? linuxDefinitionKey
+          : Platform.isMacOS
+          ? macosDefinitionKey
+          : windowsDefinitionKey;
+
+      final registry = ScriptsRegistry({
+        "script_p": {
+          platformKey: "echo platform",
+          workdirDefinitionKey: "packages/app",
+          descriptionDefinitionKey: "a platform script",
+        },
+      });
+
+      expect(
+        registry.getDefinition("script_p"),
+        equals(
+          const Definition(
+            scripts: ["echo platform"],
+            workdir: "packages/app",
+            description: "a platform script",
+          ),
+        ),
+      );
+    });
+
+    test("getDefinition keeps surrounding metadata for a (default) script", () {
+      final registry = ScriptsRegistry({
+        "group": {
+          defaultDefinitionKey: "echo default",
+          workdirDefinitionKey: "packages/app",
+          "sub": "echo sub",
+        },
+      });
+
+      expect(
+        registry.getDefinition("group"),
+        equals(
+          const Definition(scripts: ["echo default"], workdir: "packages/app"),
+        ),
       );
     });
 
