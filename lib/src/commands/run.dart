@@ -40,7 +40,7 @@ class RunCommmand extends Command<int> {
 
     final parsed = _parseExtras(argResults.arguments);
     final args = super.argParser.parse(parsed['args'] as Iterable<String>).rest;
-    final extra = (parsed['extra'] as List).join(' ');
+    final extra = parsed['extra'] as List<String>;
 
     if (args.isEmpty) {
       stdout.writeln(super.usage);

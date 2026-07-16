@@ -20,6 +20,11 @@ class UpgradeCommand extends Command<int> {
 
   @override
   Future<int> run() {
+    final rest = super.argResults!.rest;
+    if (rest.isNotEmpty) {
+      throw UsageException('Unexpected argument(s): ${rest.join(' ')}', usage);
+    }
+
     const info = Info(name: 'merry', version: packageVersion);
     final registry = ScriptsRegistry({
       'upgrade': 'dart run pub global activate merry',

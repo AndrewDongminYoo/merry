@@ -25,25 +25,23 @@ Future<int> runMerry(List<String> arguments) async {
       help: 'output the version number',
     );
 
-  final argResults = runner.parse(arguments);
+  try {
+    if (runner.parse(arguments)['version'] as bool) {
+      stdout.writeln('merry version: $packageVersion');
+      return 0;
+    }
 
-  if (argResults['version'] as bool) {
-    stdout.writeln('merry version: $packageVersion');
-    return 0;
-  } else {
-    try {
-      return await runner.run(arguments) ?? 0;
-      // ignore: avoid_catching_errors
-    } on MerryError catch (error) {
-      handleError(error);
+    return await runner.run(arguments) ?? 0;
+    // ignore: avoid_catching_errors
+  } on MerryError catch (error) {
+    handleError(error);
+    return 1;
+  } catch (exception) {
+    if (exception is UsageException && exception.message.startsWith('Could not find a command named')) {
+      return await runMerry(['run', ...arguments]);
+    } else {
+      stderr.writeln(exception);
       return 1;
-    } catch (exception) {
-      if (exception is UsageException && exception.message.startsWith('Could not find a command named')) {
-        return await runMerry(['run', ...arguments]);
-      } else {
-        stderr.writeln(exception);
-        return 1;
-      }
     }
   }
 }

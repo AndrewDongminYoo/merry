@@ -5,10 +5,9 @@ import 'package:args/command_runner.dart';
 import 'package:merry/utils.dart';
 import 'package:tint/tint.dart';
 
-/// Returns length of the longest string in a list.
+/// Returns length of the longest string in a list, or `0` when empty.
 int _getLongestStringLength(List<String> strings) {
-  final sortedList = strings.map((str) => str.length).toList()..sort();
-  return sortedList.last;
+  return strings.fold(0, (longest, str) => str.length > longest ? str.length : longest);
 }
 
 /// Returns the path prefix to display in a tree.
@@ -55,6 +54,9 @@ class ListCommand extends Command<int> {
   @override
   Future<int> run() async {
     final argResults = super.argResults!;
+    if (argResults.rest.isNotEmpty) {
+      throw UsageException('Unexpected argument(s): ${argResults.rest.join(' ')}', usage);
+    }
     final showDescriptions = argResults['description'] as bool;
     final outputFormat = argResults['output'] as String;
 

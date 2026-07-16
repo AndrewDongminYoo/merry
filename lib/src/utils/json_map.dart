@@ -1,3 +1,5 @@
+import 'package:merry/src/utils/definition.dart' show runnableScripts;
+
 /// Json serializable map.
 typedef JsonMap = Map<String, dynamic>;
 
@@ -21,16 +23,13 @@ extension JsonMapExtension on JsonMap {
     final self = this;
     final result = <String>[];
     for (final k in self.keys) {
+      if (_metaKeyPattern.hasMatch(k)) continue;
       final value = self[k];
       if (value is Map) {
-        final subPaths = value.asJsonMap().getPaths();
-        if (subPaths.isEmpty) {
-          result.add(k);
-        } else {
-          result.addAll(subPaths.map((v) => '$k $v'));
-        }
-      } else if (_metaKeyPattern.hasMatch(k)) {
-        continue;
+        final map = value.asJsonMap();
+        // a group can be runnable itself and still hold sub-commands
+        if (runnableScripts(map) != null) result.add(k);
+        result.addAll(map.getPaths().map((v) => '$k $v'));
       } else {
         result.add(k);
       }

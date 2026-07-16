@@ -114,7 +114,35 @@ void main() {
         'bar': 'foo',
       };
 
-      expect(jsonmap.getPaths(), equals(['bar', 'foo']));
+      // 'foo' holds no runnable script, only unknown metadata, so it is not a
+      // path — listing it would make getDefinition throw invalidScript.
+      expect(jsonmap.getPaths(), equals(['bar']));
+    });
+
+    test('getPaths should keep a group that is runnable and has sub-commands', () {
+      final jsonmap = {
+        'build': {
+          '(default)': 'build all',
+          'web': 'build web',
+        },
+        'test': {
+          '(scripts)': 'test all',
+          'unit': 'test unit',
+        },
+      };
+
+      expect(
+        jsonmap.getPaths(),
+        equals(['build', 'build web', 'test', 'test unit']),
+      );
+    });
+
+    test('getPaths should not list a group that only nests sub-commands', () {
+      final jsonmap = {
+        'build': {'web': 'build web'},
+      };
+
+      expect(jsonmap.getPaths(), equals(['build web']));
     });
   });
 
@@ -241,33 +269,42 @@ c:
 
   group('applyPositionalArgs', () {
     test('replaces \$1, \$2 with positional args', () {
-      final result = applyPositionalArgs('echo \$1 \$2', 'hello world');
+      final result = applyPositionalArgs('echo \$1 \$2', ['hello', 'world']);
       expect(result.key, equals('echo hello world'));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
     });
 
     test('leaves script unchanged when no \$N tokens present', () {
-      final result = applyPositionalArgs('echo hello', 'world');
+      final result = applyPositionalArgs('echo hello', ['world']);
       expect(result.key, equals('echo hello'));
-      expect(result.value, equals('world'));
+      expect(result.value, equals(['world']));
     });
 
     test('returns remaining unused args', () {
-      final result = applyPositionalArgs('echo \$1', 'hello world');
+      final result = applyPositionalArgs('echo \$1', ['hello', 'world']);
       expect(result.key, equals('echo hello'));
-      expect(result.value, equals('world'));
+      expect(result.value, equals(['world']));
     });
 
     test('replaces out-of-range token with empty string', () {
-      final result = applyPositionalArgs('echo \$1 \$2', 'hello');
+      final result = applyPositionalArgs('echo \$1 \$2', ['hello']);
       expect(result.key, equals('echo hello '));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
     });
 
     test('handles empty extra', () {
-      final result = applyPositionalArgs('echo \$1', '');
+      final result = applyPositionalArgs('echo \$1', []);
       expect(result.key, equals('echo '));
-      expect(result.value, equals(''));
+      expect(result.value, isEmpty);
+    });
+
+    test('quotes an arg containing spaces so it stays a single argument', () {
+      final result = applyPositionalArgs('greet \$1', ['Jane Doe']);
+      expect(
+        result.key,
+        equals(Platform.isWindows ? 'greet "Jane Doe"' : "greet 'Jane Doe'"),
+      );
+      expect(result.value, isEmpty);
     });
   });
 
@@ -336,24 +373,75 @@ c:
   test("Reference's from factory should work", () {
     expect(
       Reference.from("\$script_a"),
-      equals(const Reference(script: "script_a", extra: "")),
+      equals(const Reference(script: "script_a", extra: [])),
     );
 
     expect(
       Reference.from("\$script_a --extra extra"),
-      equals(const Reference(script: "script_a", extra: "--extra extra")),
+      equals(const Reference(script: "script_a", extra: ["--extra", "extra"])),
     );
 
     expect(
       Reference.from("\$script_a:script_b"),
-      equals(const Reference(script: "script_a script_b", extra: "")),
+      equals(const Reference(script: "script_a script_b", extra: [])),
     );
     expect(
       Reference.from("\$script_a:script_b --extra extra"),
       equals(
-        const Reference(script: "script_a script_b", extra: "--extra extra"),
+        const Reference(script: "script_a script_b", extra: ["--extra", "extra"]),
       ),
     );
+  });
+
+  test("Reference's from factory keeps quoted extras as one argument", () {
+    final reference = Reference.from('\$deploy --message "hello world"');
+    expect(reference.script, equals('deploy'));
+    expect(reference.extra, equals(['--message', 'hello world']));
+
+    // shellQuote round-trips it back into a single shell argument
+    expect(
+      reference.extra.map(shellQuote).join(' '),
+      equals(Platform.isWindows ? '--message "hello world"' : "--message 'hello world'"),
+    );
+  });
+
+  group('shellSplit', () {
+    test('splits on whitespace', () {
+      expect(shellSplit('a b\tc'), equals(['a', 'b', 'c']));
+    });
+
+    test('keeps quoted runs together', () {
+      expect(shellSplit('--m "hello world"'), equals(['--m', 'hello world']));
+      expect(shellSplit("--m 'hello world'"), equals(['--m', 'hello world']));
+    });
+
+    test('joins quotes adjacent to a word', () {
+      expect(shellSplit('--m="hello world"'), equals(['--m=hello world']));
+    });
+
+    test('keeps an empty quoted string as a word', () {
+      expect(shellSplit("a '' b"), equals(['a', '', 'b']));
+    });
+
+    test('treats a backslash as an escape off Windows', () {
+      expect(
+        shellSplit(r'hello\ world'),
+        equals(Platform.isWindows ? [r'hello\', 'world'] : ['hello world']),
+      );
+    });
+
+    test('keeps a backslash literal inside single quotes', () {
+      expect(shellSplit(r"'hello\ world'"), equals([r'hello\ world']));
+    });
+
+    test('takes an unterminated quote as the rest of the input', () {
+      expect(shellSplit('a "b c'), equals(['a', 'b c']));
+    });
+
+    test('returns no words for an empty or blank input', () {
+      expect(shellSplit(''), isEmpty);
+      expect(shellSplit('   '), isEmpty);
+    });
   });
 
   group('ScriptsRegistry class', () {
@@ -417,6 +505,50 @@ c:
       expect(
         registry.getDefinition("script_p"),
         equals(Definition.from("echo platform")),
+      );
+    });
+
+    test("getDefinition keeps surrounding metadata for a platform script", () {
+      final platformKey = Platform.isLinux
+          ? linuxDefinitionKey
+          : Platform.isMacOS
+          ? macosDefinitionKey
+          : windowsDefinitionKey;
+
+      final registry = ScriptsRegistry({
+        "script_p": {
+          platformKey: "echo platform",
+          workdirDefinitionKey: "packages/app",
+          descriptionDefinitionKey: "a platform script",
+        },
+      });
+
+      expect(
+        registry.getDefinition("script_p"),
+        equals(
+          const Definition(
+            scripts: ["echo platform"],
+            workdir: "packages/app",
+            description: "a platform script",
+          ),
+        ),
+      );
+    });
+
+    test("getDefinition keeps surrounding metadata for a (default) script", () {
+      final registry = ScriptsRegistry({
+        "group": {
+          defaultDefinitionKey: "echo default",
+          workdirDefinitionKey: "packages/app",
+          "sub": "echo sub",
+        },
+      });
+
+      expect(
+        registry.getDefinition("group"),
+        equals(
+          const Definition(scripts: ["echo default"], workdir: "packages/app"),
+        ),
       );
     });
 
