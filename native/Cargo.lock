@@ -90,6 +90,7 @@ version = "0.1.0"
 dependencies = [
  "colored",
  "ctrlc",
+ "libc",
  "shared_child",
 ]
 
