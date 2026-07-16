@@ -20,6 +20,64 @@ fn children() -> &'static Mutex<Vec<Arc<SharedChild>>> {
     CHILDREN.get_or_init(|| Mutex::new(Vec::new()))
 }
 
+/// Terminal job control, so a script in its own process group can still read
+/// the terminal.
+#[cfg(unix)]
+mod tty {
+    const STDIN: std::os::unix::io::RawFd = 0;
+
+    /// Points the terminal at `pgid` for as long as it is held, and gives it
+    /// back to whoever had it on drop.
+    pub struct ForegroundGuard {
+        previous: libc::pid_t,
+    }
+
+    impl ForegroundGuard {
+        /// Returns `None` when stdin is not a terminal — there is no
+        /// foreground group to hand over, and the Ctrl+C handler stays the
+        /// mechanism that cleans the tree up.
+        pub fn hand_over(pgid: libc::pid_t) -> Option<Self> {
+            // SAFETY: isatty and tcgetpgrp take a raw fd and report failure
+            // through their return value; neither dereferences anything.
+            let previous = unsafe {
+                if libc::isatty(STDIN) != 1 {
+                    return None;
+                }
+                libc::tcgetpgrp(STDIN)
+            };
+
+            if previous < 0 || !set_foreground(pgid) {
+                return None;
+            }
+
+            Some(ForegroundGuard { previous })
+        }
+    }
+
+    impl Drop for ForegroundGuard {
+        fn drop(&mut self) {
+            set_foreground(self.previous);
+        }
+    }
+
+    /// Hands the terminal to `pgid`.
+    ///
+    /// tcsetpgrp raises SIGTTOU at the caller once the caller is no longer the
+    /// foreground group — which is exactly the case when reclaiming the
+    /// terminal from the child — and the default action would stop us. Ignore
+    /// it across the call and put the old disposition back.
+    fn set_foreground(pgid: libc::pid_t) -> bool {
+        // SAFETY: signal and tcsetpgrp are safe to call here; SIG_IGN is a
+        // valid disposition and the previous one is restored verbatim.
+        unsafe {
+            let previous_handler = libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+            let handed_over = libc::tcsetpgrp(STDIN, pgid) == 0;
+            libc::signal(libc::SIGTTOU, previous_handler);
+            handed_over
+        }
+    }
+}
+
 /// Terminates `child` and everything it spawned.
 ///
 /// ponytail: on Unix the child leads its own process group (see
@@ -28,17 +86,21 @@ fn children() -> &'static Mutex<Vec<Arc<SharedChild>>> {
 /// compound script can survive. The upgrade path there is a Job Object.
 fn kill_tree(child: &SharedChild) {
     #[cfg(unix)]
-    {
-        // SAFETY: `killpg` is always safe to call; an already-exited group just
-        // yields ESRCH, which we ignore.
-        unsafe {
-            libc::killpg(child.id() as libc::pid_t, libc::SIGTERM);
-        }
-    }
+    kill_group(child.id() as libc::pid_t);
 
     #[cfg(not(unix))]
     {
         let _ = child.kill();
+    }
+}
+
+/// Terminates every process still in the group led by `pgid`.
+#[cfg(unix)]
+fn kill_group(pgid: libc::pid_t) {
+    // SAFETY: killpg takes no pointers and reports failure by return value; an
+    // already-empty group just yields ESRCH, which we ignore.
+    unsafe {
+        libc::killpg(pgid, libc::SIGTERM);
     }
 }
 
@@ -86,12 +148,8 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
     cmd.arg(option).arg(&script);
 
     // Lead a new process group so Ctrl+C can take down the whole tree, not just
-    // the shell.
-    //
-    // ponytail: this also makes the child a *background* group for the tty, so
-    // a script that reads the terminal (a `git`/`sudo` prompt) gets SIGTTIN and
-    // stops. The upgrade path is full job control — hand the terminal over with
-    // `tcsetpgrp` and reclaim it once the child exits.
+    // the shell. On a terminal the group is then handed the foreground below,
+    // which is what keeps interactive scripts able to read stdin.
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
@@ -110,6 +168,25 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
         child
     };
 
+    // Hand the terminal to the child's group so a prompt inside the script can
+    // read stdin instead of being stopped by SIGTTIN. The guard takes the
+    // terminal back when it drops, on every path out of this function.
+    //
+    // Ctrl+C then goes to the child's group directly, from the kernel — our
+    // handler is for the case with no terminal to hand over.
+    #[cfg(unix)]
+    let pgid = child.id() as libc::pid_t;
+
+    #[cfg(unix)]
+    let _foreground = {
+        // The child sets its own group before exec; setting it from here too
+        // means the handover cannot lose that race. EACCES just means the child
+        // got there first.
+        // SAFETY: setpgid takes no pointers and reports failure by return value.
+        unsafe { libc::setpgid(pgid, pgid) };
+        tty::ForegroundGuard::hand_over(pgid)
+    };
+
     let status = child.wait();
     forget_child(&child);
 
@@ -121,9 +198,15 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
     #[cfg(unix)]
     {
         use std::os::unix::process::ExitStatusExt;
-        return status
-            .code()
-            .unwrap_or_else(|| status.signal().map(|s| 128 + s).unwrap_or(ERR_SPAWN));
+        if let Some(signal) = status.signal() {
+            // Ctrl+C on a terminal is delivered by the kernel straight to the
+            // foreground group — the child's — so the handler above never runs.
+            // Sweep the group here instead: a job the script backgrounded holds
+            // SIGINT ignored and would otherwise be left behind.
+            kill_group(pgid);
+            return 128 + signal;
+        }
+        return status.code().unwrap_or(ERR_SPAWN);
     }
 
     #[cfg(not(unix))]
