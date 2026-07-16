@@ -34,6 +34,9 @@ class SourceCommand extends Command<int> {
   @override
   Future<int> run() async {
     final argResults = super.argResults!;
+    if (argResults.rest.isNotEmpty) {
+      throw UsageException('Unexpected argument(s): ${argResults.rest.join(' ')}', usage);
+    }
     final check = argResults['check'] as bool;
     final absolute = argResults['absolute'] as bool;
 
