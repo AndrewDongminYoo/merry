@@ -12,24 +12,17 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Include every repository-controlled file Cargo can consume while excluding
-# generated output. Paths, byte lengths, and contents form unambiguous tuples
-# that remain reproducible across machines.
+# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
+# Cargo package trees and repository-level configuration are included, while
+# checked-in output blobs are excluded to avoid hashing the stamp itself.
 hash_sources() {
-  {
-    find native -path native/target -prune -o -type f -print0
-    for config in .cargo/config .cargo/config.toml; do
-      if [ -f "$config" ]; then
-        printf '%s\0' "$config"
-      fi
-    done
-  } |
-    sort -z |
-    while IFS= read -r -d '' file; do
-      byte_length="$(wc -c <"$file" | tr -d '[:space:]')"
-      printf '%s\0%s\0' "$file" "$byte_length"
-      cat "$file"
-    done
+  local trees=(native .cargo/config .cargo/config.toml)
+  while IFS= read -r -d '' manifest; do
+    trees+=("$(dirname "$manifest")")
+  done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
+
+  git ls-files --stage -z -- "${trees[@]}" ':(exclude,glob)lib/src/blobs/**' |
+    sort -z -u
 }
 
 sha256() {
