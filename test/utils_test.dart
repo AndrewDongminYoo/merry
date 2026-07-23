@@ -405,6 +405,17 @@ c:
     );
   });
 
+  test('shellChangeDirectory treats the workdir as literal data', () {
+    const workdir = r'$(touch /tmp/pwn)';
+
+    expect(
+      shellChangeDirectory(workdir),
+      equals(
+        Platform.isWindows ? r'cd /d "$(touch /tmp/pwn)" &&' : r"cd '$(touch /tmp/pwn)' &&",
+      ),
+    );
+  });
+
   group('shellSplit', () {
     test('splits on whitespace', () {
       expect(shellSplit('a b\tc'), equals(['a', 'b', 'c']));

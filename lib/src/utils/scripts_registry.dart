@@ -1,10 +1,8 @@
-import 'dart:io' show Platform;
-
 import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
-import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
+import 'package:merry/src/utils/shell_quote.dart' show shellChangeDirectory, shellQuote;
 import 'package:merry/utils.dart'
     show
         Definition,
@@ -158,11 +156,6 @@ class ScriptsRegistry {
     return getAliasMap()[script] ?? script;
   }
 
-  String _escapeDoubleQuotes(String input) {
-    if (Platform.isWindows) return input.replaceAll('"', '""');
-    return input.replaceAll('\\', r'\\').replaceAll('"', r'\"');
-  }
-
   /// Runs a script from the scripts map if it exists.
   Future<int> runScript(String script, {List<String> extra = const []}) async {
     final canonical = _resolveAlias(script);
@@ -197,8 +190,7 @@ class ScriptsRegistry {
         );
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
-          final escapedWorkdir = _escapeDoubleQuotes(definition.workdir!);
-          final cdCmd = Platform.isWindows ? 'cd /d "$escapedWorkdir" &&' : 'cd "$escapedWorkdir" &&';
+          final cdCmd = shellChangeDirectory(definition.workdir!);
           normalizedScript = '$cdCmd $normalizedScript';
         }
         // apply ${VAR} substitution using (variables) definitions and env

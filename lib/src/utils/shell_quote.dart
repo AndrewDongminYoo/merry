@@ -17,6 +17,18 @@ String shellQuote(String arg) {
   return "'${arg.replaceAll("'", r"'\''")}'";
 }
 
+/// Builds a shell command that changes to [workdir] before continuing.
+///
+/// On POSIX, [shellQuote] prevents the shell from evaluating command
+/// substitutions or other metacharacters in the directory name.
+String shellChangeDirectory(String workdir) {
+  if (Platform.isWindows) {
+    final escaped = workdir.replaceAll('"', '""');
+    return 'cd /d "$escaped" &&';
+  }
+  return 'cd ${shellQuote(workdir)} &&';
+}
+
 /// Splits a shell command tail into the words the shell would pass as
 /// arguments, so `--message "hello world"` becomes two words rather than
 /// three.
