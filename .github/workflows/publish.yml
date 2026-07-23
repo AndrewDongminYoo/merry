@@ -3,7 +3,7 @@ name: Publish to pub.dev
 on:
   push:
     tags:
-      - v*
+      - v[0-9]*.[0-9]*.[0-9]*
 
 permissions:
   checks: write
@@ -20,6 +20,10 @@ jobs:
       id-token: write # This is required for authentication using OIDC
     runs-on: ubuntu-latest
     steps:
+      - name: Validate release tag
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
       - uses: actions/checkout@v4
       - uses: dart-lang/setup-dart@v1
 
