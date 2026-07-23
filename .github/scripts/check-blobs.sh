@@ -12,11 +12,17 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Content only — no paths, no timestamps — so the hash is reproducible on any
-# machine without building anything.
+# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
+# Cargo package trees and repository-level configuration are included, while
+# checked-in output blobs are excluded to avoid hashing the stamp itself.
 hash_sources() {
-  find native/src -type f -name '*.rs' -print0 | sort -z | xargs -0 cat
-  cat native/Cargo.toml native/Cargo.lock
+  local trees=(native .cargo/config .cargo/config.toml)
+  while IFS= read -r -d '' manifest; do
+    trees+=("$(dirname "$manifest")")
+  done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
+
+  git ls-files --stage -z -- "${trees[@]}" ':(exclude,glob)lib/src/blobs/**' |
+    sort -z -u
 }
 
 sha256() {

@@ -20,6 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - run: .github/scripts/check-blobs_test.sh
+
       # Catches a native/ change merging without its blob rebuild. The same
       # check gates publishing, but a red PR says so before it reaches a tag.
       - run: .github/scripts/check-blobs.sh
