@@ -12,14 +12,22 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Include every file Cargo can consume while excluding its generated output.
-# Relative paths and contents make additions, removals, and renames significant
-# while remaining reproducible across machines.
+# Include every repository-controlled file Cargo can consume while excluding
+# generated output. Paths, byte lengths, and contents form unambiguous tuples
+# that remain reproducible across machines.
 hash_sources() {
-  find native -path native/target -prune -o -type f -print0 |
+  {
+    find native -path native/target -prune -o -type f -print0
+    for config in .cargo/config .cargo/config.toml; do
+      if [ -f "$config" ]; then
+        printf '%s\0' "$config"
+      fi
+    done
+  } |
     sort -z |
     while IFS= read -r -d '' file; do
-      printf '%s\0' "$file"
+      byte_length="$(wc -c <"$file" | tr -d '[:space:]')"
+      printf '%s\0%s\0' "$file" "$byte_length"
       cat "$file"
     done
 }
