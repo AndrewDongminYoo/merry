@@ -12,11 +12,16 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Content only — no paths, no timestamps — so the hash is reproducible on any
-# machine without building anything.
+# Include every file Cargo can consume while excluding its generated output.
+# Relative paths and contents make additions, removals, and renames significant
+# while remaining reproducible across machines.
 hash_sources() {
-  find native/src -type f -name '*.rs' -print0 | sort -z | xargs -0 cat
-  cat native/Cargo.toml native/Cargo.lock
+  find native -path native/target -prune -o -type f -print0 |
+    sort -z |
+    while IFS= read -r -d '' file; do
+      printf '%s\0' "$file"
+      cat "$file"
+    done
 }
 
 sha256() {
