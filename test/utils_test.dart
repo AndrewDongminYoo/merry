@@ -306,6 +306,21 @@ c:
       );
       expect(result.value, isEmpty);
     });
+
+    test('rejects a referenced arg that carries a shell-active character', () {
+      // Fail-closed: a placeholder can sit inside quotes, where `$(...)` runs in
+      // double quotes and `;` runs in single quotes, so refuse rather than
+      // splice. (Only referenced args are checked; unused ones are appended in a
+      // safe unquoted position.)
+      expect(
+        () => applyPositionalArgs('echo \$1', [r'$(touch pwned)']),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => applyPositionalArgs("echo '\$1'", ['; touch pwned']),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 
   group('collectVariables', () {
@@ -366,6 +381,19 @@ c:
       expect(
         substituteVariables('echo \${PATH}', {'PATH': 'overridden'}),
         equals('echo overridden'),
+      );
+    });
+
+    test('rejects a variable value that carries a shell-active character', () {
+      // (variables) values are spliced as text, so a `$(...)` or `;` payload
+      // must fail closed rather than reach the shell.
+      expect(
+        () => substituteVariables('echo \${V}', {'V': r'$(touch pwned)'}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => substituteVariables('echo \${V}', {'V': '; rm -rf /'}),
+        throwsA(isA<FormatException>()),
       );
     });
   });

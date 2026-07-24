@@ -1,4 +1,4 @@
-import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
+import 'package:merry/src/utils/shell_quote.dart' show assertShellInert, shellQuote;
 
 /// Replaces `$1`, `$2`, etc. in [script] with positional args from [args].
 ///
@@ -24,6 +24,9 @@ MapEntry<String, List<String>> applyPositionalArgs(String script, List<String> a
     final index = int.parse(match.group(1)!) - 1; // $1 → args[0]
     if (index >= 0 && index < args.length) {
       usedIndices.add(index);
+      // A referenced arg may be substituted inside quotes, so refuse to run
+      // when it carries a shell-active character rather than risk injection.
+      assertShellInert(args[index], 'positional argument \$${index + 1}');
       return shellQuote(args[index]);
     }
     return ''; // out-of-range token → empty string
