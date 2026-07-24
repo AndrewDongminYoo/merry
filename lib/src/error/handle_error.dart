@@ -49,6 +49,10 @@ void handleError(MerryError e) {
         buffer.writeln('$prefix Script definition of "$scriptRun" is invalid.');
       }
 
+    case ErrorCode.circularReference:
+      final cycle = (e.body['cycle'] as List<String>).join(' -> ');
+      buffer.writeln('$prefix Circular script reference detected: $cycle.');
+
     case ErrorCode.missingScripts:
       buffer.writeln(
         '$prefix Field `scripts` is not defined in `pubspec.yaml`.',

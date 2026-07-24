@@ -166,8 +166,30 @@ class ScriptsRegistry {
   }
 
   /// Runs a script from the scripts map if it exists.
-  Future<int> runScript(String script, {List<String> extra = const []}) async {
+  Future<int> runScript(String script, {List<String> extra = const []}) {
+    return _runScriptWithReferences(script, extra: extra, ancestors: const []);
+  }
+
+  /// Runs [script] while tracking the chain of `$reference` hops in
+  /// [ancestors], so a reference loop is reported as an error instead of
+  /// recursing until the stack is exhausted.
+  Future<int> _runScriptWithReferences(
+    String script, {
+    required List<String> ancestors,
+    List<String> extra = const [],
+  }) async {
     final canonical = _resolveAlias(script);
+
+    final cycleStart = ancestors.indexOf(canonical);
+    if (cycleStart != -1) {
+      throw MerryError(
+        type: ErrorCode.circularReference,
+        body: {
+          'cycle': [...ancestors.sublist(cycleStart), canonical],
+        },
+      );
+    }
+    final path = [...ancestors, canonical];
 
     final preScript = lookup('pre$canonical');
     if (preScript != null) {
@@ -177,16 +199,17 @@ class ScriptsRegistry {
       final preExitCode = await _runScript(
         'pre$canonical',
         stopOnFirstFailure: true,
+        ancestors: path,
       );
       if (preExitCode != 0) return preExitCode;
     }
 
-    final exitCode = await _runScript(canonical, extra: extra);
+    final exitCode = await _runScript(canonical, extra: extra, ancestors: path);
     if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
     if (postScript != null) {
-      final postExitCode = await _runScript('post$canonical');
+      final postExitCode = await _runScript('post$canonical', ancestors: path);
       if (postExitCode == _sigintExitCode) return postExitCode;
     }
 
@@ -195,6 +218,7 @@ class ScriptsRegistry {
 
   Future<int> _runScript(
     String scriptString, {
+    required List<String> ancestors,
     List<String> extra = const [],
     bool stopOnFirstFailure = false,
   }) async {
@@ -204,9 +228,10 @@ class ScriptsRegistry {
     for (final script in definition.scripts) {
       if (script.startsWith(referencePrefix)) {
         final ref = getReference(script);
-        exitCode = await runScript(
+        exitCode = await _runScriptWithReferences(
           ref.script,
           extra: [...ref.extra, ...extra],
+          ancestors: ancestors,
         );
       } else {
         // replace all \$ with $, they are not valid references
