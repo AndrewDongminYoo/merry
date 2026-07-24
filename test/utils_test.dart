@@ -602,6 +602,22 @@ c:
       expect(registry.getAliasMap(), equals({"i": "install"}));
     });
 
+    test("runScript stops a list after the first failed command", () async {
+      final commands = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "deploy": ["security-check", "publish"],
+        },
+        scriptRunner: (script) async {
+          commands.add(script);
+          return script == "security-check" ? 42 : 0;
+        },
+      );
+
+      expect(await registry.runScript("deploy"), equals(42));
+      expect(commands, equals(["security-check"]));
+    });
+
     // todo: to add tests for runScript
   });
 

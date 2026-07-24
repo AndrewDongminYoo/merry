@@ -20,6 +20,8 @@ import 'package:merry/utils.dart'
 
 final _metaKeyPattern = RegExp(r'^\(\w+\)$');
 
+typedef ScriptRunner = Future<int> Function(String script);
+
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
 
@@ -29,8 +31,14 @@ class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
   final JsonMap scripts;
 
+  final ScriptRunner _scriptRunner;
+
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
-  ScriptsRegistry(JsonMap scriptsMap) : scripts = scriptsMap;
+  ScriptsRegistry(
+    JsonMap scriptsMap, {
+    ScriptRunner scriptRunner = bindings.runScript,
+  }) : scripts = scriptsMap,
+       _scriptRunner = scriptRunner;
 
   /// A list of all possible paths,
   /// used as a mean of memoization.
@@ -207,10 +215,12 @@ class ScriptsRegistry {
           getVariables(),
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
+        exitCode = await _scriptRunner(
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
+
+      if (exitCode != 0) break;
     }
 
     return exitCode;
