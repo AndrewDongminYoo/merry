@@ -27,8 +27,16 @@ class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
   final JsonMap scripts;
 
+  /// Runs a single command string, returning its exit code. Injectable so the
+  /// hook/list control flow can be unit-tested without spawning a real shell.
+  final Future<int> Function(String) _runCommand;
+
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
-  ScriptsRegistry(JsonMap scriptsMap) : scripts = scriptsMap;
+  ScriptsRegistry(
+    JsonMap scriptsMap, {
+    Future<int> Function(String)? runCommand,
+  }) : scripts = scriptsMap,
+       _runCommand = runCommand ?? bindings.runScript;
 
   /// A list of all possible paths,
   /// used as a mean of memoization.
@@ -161,7 +169,10 @@ class ScriptsRegistry {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
-    if (preScript != null) await _runScript('pre$canonical');
+    if (preScript != null) {
+      final preExitCode = await _runScript('pre$canonical');
+      if (preExitCode != 0) return preExitCode;
+    }
 
     final exitCode = await _runScript(canonical, extra: extra);
 
@@ -199,10 +210,15 @@ class ScriptsRegistry {
           getVariables(),
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
+        exitCode = await _runCommand(
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
+
+      // Stop the list at its first failure so a later command's success cannot
+      // mask an earlier non-zero exit. A list-valued pre-hook would otherwise
+      // report success and let the protected main script run anyway.
+      if (exitCode != 0) break;
     }
 
     return exitCode;

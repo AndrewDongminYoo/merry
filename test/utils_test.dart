@@ -657,7 +657,49 @@ c:
       expect(registry.getAliasMap(), equals({"i": "install"}));
     });
 
-    // todo: to add tests for runScript
+    test("runScript stops when its pre-hook fails", () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'merry-pre-hook-test-',
+      );
+      final marker = File(path.join(directory.path, 'main-ran'));
+      final registry = ScriptsRegistry({
+        "predeploy": "dart definitely-not-a-command",
+        "deploy": "echo ran > ${shellQuote(marker.path)}",
+      });
+
+      try {
+        final exitCode = await registry.runScript("deploy");
+
+        expect(exitCode, isNot(0));
+        expect(marker.existsSync(), isFalse);
+      } finally {
+        directory.deleteSync(recursive: true);
+      }
+    });
+
+    test("runScript aborts when a list-valued pre-hook fails mid-list", () async {
+      // A failing validation followed by a would-be cleanup (the documented
+      // prepublish-list form): the failure must not be masked by the later
+      // command's success, or the protected script runs anyway.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "predeploy": ["exit 2", "echo cleanup"],
+          "deploy": "echo main",
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("exit 2") ? 2 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("deploy");
+
+      expect(exitCode, equals(2));
+      // Fail-fast: the list stops at the first failure, so the cleanup and the
+      // main script (reached only after a zero-status pre-hook) never run.
+      expect(ran, equals(["exit 2"]));
+    });
   });
 
   group('ls --output=json shape', () {
