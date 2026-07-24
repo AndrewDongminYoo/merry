@@ -3,25 +3,21 @@ name: Publish to pub.dev
 on:
   push:
     tags:
-      - v*
+      - v[0-9]*.[0-9]*.[0-9]*
 
 permissions:
-  checks: write
-  contents: write
+  contents: read
 
 env:
   # Actions will be forced to run with Node.js 24 by default starting June 2nd, 2026.
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
-  publish:
-    environment: pub.dev
-    permissions:
-      id-token: write # This is required for authentication using OIDC
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dart-lang/setup-dart@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
 
       # Nothing here compiles native/, so a release would happily ship blobs
       # built from older sources.
@@ -33,6 +29,23 @@ jobs:
 
       - name: Run tests
         run: dart test
+
+  publish:
+    needs: test
+    environment: pub.dev
+    permissions:
+      contents: read
+      id-token: write # This is required for authentication using OIDC
+    runs-on: ubuntu-latest
+    steps:
+      # Defense in depth: the tag glob above is looser than semver, so reject
+      # anything that is not exactly vMAJOR.MINOR.PATCH before publishing.
+      - name: Validate release tag
+        run: |
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
 
       - name: Publish
         run: dart pub publish --force

@@ -1,3 +1,18 @@
+## [2.1.2] - 2026-07-24
+
+### Fixed
+
+- Reject invalid CLI options and unexpected arguments with usage errors instead of crashing, including when the script configuration is empty
+- Preserve quoting and argument boundaries for positional arguments and referenced scripts, including backslash escapes
+- Keep interactive scripts attached to the terminal and reliably terminate their entire process group on Ctrl+C
+- Preserve runnable command groups and surrounding metadata when listing or resolving platform-specific and default scripts
+- Treat configured POSIX working directories as literal shell data so command substitutions are not evaluated
+
+### Internal
+
+- Bind checked-in native blobs to all tracked Cargo inputs, including symlinks, executable modes, workspace members, and repository Cargo configuration
+- Restrict the OIDC publishing workflow to strict `vMAJOR.MINOR.PATCH` tags
+
 ## [2.1.1] - 2026-04-25
 
 ### Fixed

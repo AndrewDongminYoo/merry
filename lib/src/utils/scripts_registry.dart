@@ -1,10 +1,8 @@
-import 'dart:io' show Platform;
-
 import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
-import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
+import 'package:merry/src/utils/shell_quote.dart' show shellChangeDirectory, shellQuote;
 import 'package:merry/utils.dart'
     show
         Definition,
@@ -29,8 +27,16 @@ class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
   final JsonMap scripts;
 
+  /// Runs a single command string, returning its exit code. Injectable so the
+  /// hook/list control flow can be unit-tested without spawning a real shell.
+  final Future<int> Function(String) _runCommand;
+
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
-  ScriptsRegistry(JsonMap scriptsMap) : scripts = scriptsMap;
+  ScriptsRegistry(
+    JsonMap scriptsMap, {
+    Future<int> Function(String)? runCommand,
+  }) : scripts = scriptsMap,
+       _runCommand = runCommand ?? bindings.runScript;
 
   /// A list of all possible paths,
   /// used as a mean of memoization.
@@ -158,17 +164,20 @@ class ScriptsRegistry {
     return getAliasMap()[script] ?? script;
   }
 
-  String _escapeDoubleQuotes(String input) {
-    if (Platform.isWindows) return input.replaceAll('"', '""');
-    return input.replaceAll('\\', r'\\').replaceAll('"', r'\"');
-  }
-
   /// Runs a script from the scripts map if it exists.
   Future<int> runScript(String script, {List<String> extra = const []}) async {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
-    if (preScript != null) await _runScript('pre$canonical');
+    if (preScript != null) {
+      // A pre-hook gates the main script, so its list must fail fast: an early
+      // failure cannot be masked by a later command's success (#18).
+      final preExitCode = await _runScript(
+        'pre$canonical',
+        stopOnFirstFailure: true,
+      );
+      if (preExitCode != 0) return preExitCode;
+    }
 
     final exitCode = await _runScript(canonical, extra: extra);
 
@@ -178,7 +187,11 @@ class ScriptsRegistry {
     return exitCode;
   }
 
-  Future<int> _runScript(String scriptString, {List<String> extra = const []}) async {
+  Future<int> _runScript(
+    String scriptString, {
+    List<String> extra = const [],
+    bool stopOnFirstFailure = false,
+  }) async {
     final definition = getDefinition(scriptString);
     var exitCode = 0;
 
@@ -197,8 +210,7 @@ class ScriptsRegistry {
         );
         // prepend cd if a workdir is specified
         if (definition.workdir != null) {
-          final escapedWorkdir = _escapeDoubleQuotes(definition.workdir!);
-          final cdCmd = Platform.isWindows ? 'cd /d "$escapedWorkdir" &&' : 'cd "$escapedWorkdir" &&';
+          final cdCmd = shellChangeDirectory(definition.workdir!);
           normalizedScript = '$cdCmd $normalizedScript';
         }
         // apply ${VAR} substitution using (variables) definitions and env
@@ -207,12 +219,17 @@ class ScriptsRegistry {
           getVariables(),
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
+        exitCode = await _runCommand(
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
 
-      if (definition.execution == 'once' && exitCode != 0) break;
+      // Stop on the first failure when the caller demands it (a pre-hook gate,
+      // whose later command's success must not mask an earlier failure) or when
+      // `(execution): once` asks for fail-fast. `multiple` runs every command.
+      if (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once')) {
+        break;
+      }
     }
 
     return exitCode;

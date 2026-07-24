@@ -6,6 +6,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
+import 'package:yaml/yaml.dart' show loadYaml;
 
 @GenerateMocks([File, Directory])
 import './utils_test.mocks.dart';
@@ -186,6 +187,21 @@ void main() {
     });
   });
 
+  test('toJsonMap rejects cyclic YAML aliases', () {
+    final yaml = loadYaml('scripts: &scripts\n  loop: *scripts\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+  });
+
+  test('toJsonMap rejects a cyclic anchor reused as a mapping key', () {
+    // `? *foo` makes the mapping its own key; hashing that cyclic key
+    // deep-recurses in package:yaml and would overflow the stack (crashing
+    // e.g. `merry ls`) before any cycle check could run.
+    final yaml = loadYaml('foo: &foo\n  ? *foo\n  : echo hi\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+  });
+
   // grouping a bunch of tests didn't work with IOOverrides
   // therefore we have a big test instead
   test('Pubspec class', () {
@@ -346,6 +362,21 @@ c:
       );
       expect(result.value, isEmpty);
     });
+
+    test('rejects a referenced arg that carries a shell-active character', () {
+      // Fail-closed: a placeholder can sit inside quotes, where `$(...)` runs in
+      // double quotes and `;` runs in single quotes, so refuse rather than
+      // splice. (Only referenced args are checked; unused ones are appended in a
+      // safe unquoted position.)
+      expect(
+        () => applyPositionalArgs('echo \$1', [r'$(touch pwned)']),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => applyPositionalArgs("echo '\$1'", ['; touch pwned']),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 
   group('collectVariables', () {
@@ -408,6 +439,19 @@ c:
         equals('echo overridden'),
       );
     });
+
+    test('rejects a variable value that carries a shell-active character', () {
+      // (variables) values are spliced as text, so a `$(...)` or `;` payload
+      // must fail closed rather than reach the shell.
+      expect(
+        () => substituteVariables('echo \${V}', {'V': r'$(touch pwned)'}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => substituteVariables('echo \${V}', {'V': '; rm -rf /'}),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 
   test("Reference's from factory should work", () {
@@ -442,6 +486,17 @@ c:
     expect(
       reference.extra.map(shellQuote).join(' '),
       equals(Platform.isWindows ? '--message "hello world"' : "--message 'hello world'"),
+    );
+  });
+
+  test('shellChangeDirectory treats the workdir as literal data', () {
+    const workdir = r'$(touch /tmp/pwn)';
+
+    expect(
+      shellChangeDirectory(workdir),
+      equals(
+        Platform.isWindows ? r'cd /d "$(touch /tmp/pwn)" &&' : r"cd '$(touch /tmp/pwn)' &&",
+      ),
     );
   });
 
@@ -486,27 +541,27 @@ c:
 
   group('ScriptsRegistry class', () {
     test('(execution): once stops after the first failed script', () async {
-      final tempDirectory = await Directory.systemTemp.createTemp(
-        'merry_fail_fast_',
-      );
-      final sentinel = File(path.join(tempDirectory.path, 'unsafe.txt'));
-      final failCommand = Platform.isWindows ? 'exit /b 7' : 'exit 7';
-      final unsafeCommand = Platform.isWindows
-          ? 'echo unsafe>"${sentinel.path}"'
-          : 'echo unsafe > ${shellQuote(sentinel.path)}';
-      final registry = ScriptsRegistry({
-        'release': {
-          executionDefinitionKey: 'once',
-          scriptsDefinitionKey: [failCommand, unsafeCommand],
+      // Exercised through the injected runner like the pre-hook tests: under
+      // `dart test` the native blob returns a spurious failure for every real
+      // command, so a shell-backed exit code cannot be asserted here.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          'release': {
+            executionDefinitionKey: 'once',
+            scriptsDefinitionKey: ['exit 7', 'echo unsafe'],
+          },
         },
-      });
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains('exit 7') ? 7 : 0;
+        },
+      );
 
-      try {
-        expect(await registry.runScript('release'), equals(7));
-        expect(await sentinel.exists(), isFalse);
-      } finally {
-        await tempDirectory.delete(recursive: true);
-      }
+      expect(await registry.runScript('release'), equals(7));
+      // Fail-fast: the once list stops at the first failure, so the second
+      // command that would have run the unsafe side effect never executes.
+      expect(ran, equals(['exit 7']));
     });
 
     test("constructor works", () {
@@ -666,7 +721,49 @@ c:
       expect(registry.getAliasMap(), equals({"i": "install"}));
     });
 
-    // todo: to add tests for runScript
+    test("runScript stops when its pre-hook fails", () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'merry-pre-hook-test-',
+      );
+      final marker = File(path.join(directory.path, 'main-ran'));
+      final registry = ScriptsRegistry({
+        "predeploy": "dart definitely-not-a-command",
+        "deploy": "echo ran > ${shellQuote(marker.path)}",
+      });
+
+      try {
+        final exitCode = await registry.runScript("deploy");
+
+        expect(exitCode, isNot(0));
+        expect(marker.existsSync(), isFalse);
+      } finally {
+        directory.deleteSync(recursive: true);
+      }
+    });
+
+    test("runScript aborts when a list-valued pre-hook fails mid-list", () async {
+      // A failing validation followed by a would-be cleanup (the documented
+      // prepublish-list form): the failure must not be masked by the later
+      // command's success, or the protected script runs anyway.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "predeploy": ["exit 2", "echo cleanup"],
+          "deploy": "echo main",
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("exit 2") ? 2 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("deploy");
+
+      expect(exitCode, equals(2));
+      // Fail-fast: the list stops at the first failure, so the cleanup and the
+      // main script (reached only after a zero-status pre-hook) never run.
+      expect(ran, equals(["exit 2"]));
+    });
   });
 
   group('ls --output=json shape', () {
