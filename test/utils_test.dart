@@ -6,6 +6,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
+import 'package:yaml/yaml.dart' show loadYaml;
 
 @GenerateMocks([File, Directory])
 import './utils_test.mocks.dart';
@@ -144,6 +145,12 @@ void main() {
 
       expect(jsonmap.getPaths(), equals(['build web']));
     });
+  });
+
+  test('toJsonMap rejects cyclic YAML aliases', () {
+    final yaml = loadYaml('scripts: &scripts\n  loop: *scripts\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
   });
 
   // grouping a bunch of tests didn't work with IOOverrides

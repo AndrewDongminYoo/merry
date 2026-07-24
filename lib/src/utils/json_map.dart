@@ -1,3 +1,5 @@
+import 'dart:collection' show HashSet;
+
 import 'package:merry/src/utils/definition.dart' show runnableScripts;
 
 /// Json serializable map.
@@ -8,13 +10,24 @@ final _metaKeyPattern = RegExp(r'^\(\w+\)$');
 extension ToJsonMapExtension on Map<dynamic, dynamic> {
   /// Takes a `Map` and returns a `JsonMap`
   JsonMap toJsonMap() {
-    final self = this;
-    return self.map(
-      (key, value) => MapEntry(key.toString(), value is Map ? value.toJsonMap() : value),
-    );
+    return _toJsonMap(this, HashSet<Map<dynamic, dynamic>>.identity());
   }
 
   JsonMap asJsonMap() => this is JsonMap ? this as JsonMap : toJsonMap();
+}
+
+JsonMap _toJsonMap(Map<dynamic, dynamic> map, Set<Map<dynamic, dynamic>> ancestors) {
+  if (!ancestors.add(map)) {
+    throw const FormatException('Cyclic map aliases are not supported.');
+  }
+
+  final result = <String, dynamic>{};
+  for (final entry in map.entries) {
+    final value = entry.value;
+    result[entry.key.toString()] = value is Map ? _toJsonMap(value, ancestors) : value;
+  }
+  ancestors.remove(map);
+  return result;
 }
 
 extension JsonMapExtension on JsonMap {
