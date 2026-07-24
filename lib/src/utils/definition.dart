@@ -103,6 +103,13 @@ class Definition extends Equatable {
       final description = input[descriptionDefinitionKey] as String?;
       final scripts = input[scriptsDefinitionKey] as dynamic;
       final execution = input[executionDefinitionKey] as String? ?? 'multiple';
+      // Reject typos like `onc` or `once ` instead of silently falling back to
+      // `multiple`, which would run every command after a failure.
+      if (execution != 'once' && execution != 'multiple') {
+        throw FormatException(
+          'Invalid `(execution)` value "$execution"; expected "once" or "multiple".',
+        );
+      }
       final workdir = input[workdirDefinitionKey] as String?;
 
       return Definition(

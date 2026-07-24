@@ -54,6 +54,33 @@ void main() {
     );
   });
 
+  test("Definition.from rejects an unknown execution mode", () {
+    // A typo must fail loudly instead of silently degrading to `multiple`,
+    // which would run every command after a failure.
+    expect(
+      () => Definition.from(const {
+        '(execution)': 'onc',
+        '(scripts)': 'echo hi',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => Definition.from(const {
+        '(execution)': 'once ',
+        '(scripts)': 'echo hi',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test("Definition.from defaults execution to multiple", () {
+    expect(Definition.from('echo hi').execution, equals('multiple'));
+    expect(
+      Definition.from(const {'(scripts)': 'echo hi'}).execution,
+      equals('multiple'),
+    );
+  });
+
   test("Info's toString should work", () {
     expect(
       const Info(name: 'merry', version: '0.0.1').toString(),
@@ -696,6 +723,23 @@ c:
       final entry = <String, dynamic>{'name': 'native', 'commands': def.scripts};
       if (def.workdir != null) entry['workdir'] = def.workdir;
       expect(entry['workdir'], equals('native'));
+    });
+
+    test('execution field is omitted when default (multiple)', () {
+      final def = Definition.from('echo hi');
+      final entry = <String, dynamic>{'name': 'greet', 'commands': def.scripts};
+      if (def.execution != 'multiple') entry['execution'] = def.execution;
+      expect(entry.containsKey('execution'), isFalse);
+    });
+
+    test('execution field is present when set to once', () {
+      final def = Definition.from(const {
+        executionDefinitionKey: 'once',
+        scriptsDefinitionKey: ['build', 'deploy'],
+      });
+      final entry = <String, dynamic>{'name': 'ship', 'commands': def.scripts};
+      if (def.execution != 'multiple') entry['execution'] = def.execution;
+      expect(entry['execution'], equals('once'));
     });
 
     test('hooks field lists pre/post script names when they exist', () {
