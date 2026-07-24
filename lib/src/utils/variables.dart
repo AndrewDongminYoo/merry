@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 
+import 'package:merry/src/utils/shell_quote.dart' show assertShellInert;
 import 'package:merry/utils.dart' show JsonMap, variablesDefinitionKey;
 
 /// Collects all variable definitions from [map] by scanning for `(variables)`
@@ -36,6 +37,13 @@ Map<String, String> collectVariables(JsonMap map) {
 String substituteVariables(String script, Map<String, String> variables) {
   return script.replaceAllMapped(RegExp(r'\$\{(\w+)\}'), (match) {
     final name = match.group(1)!;
-    return variables[name] ?? Platform.environment[name] ?? match.group(0)!;
+    final defined = variables[name];
+    if (defined != null) {
+      // (variables) values are spliced as text, so refuse to run when one
+      // carries a shell-active character (e.g. `$(...)` or `;`).
+      assertShellInert(defined, 'variable \${$name}');
+      return defined;
+    }
+    return Platform.environment[name] ?? match.group(0)!;
   });
 }
