@@ -721,6 +721,32 @@ c:
       expect(registry.getAliasMap(), equals({"i": "install"}));
     });
 
+    test("runScript propagates SIGINT (130) from a post-hook", () async {
+      // A Ctrl+C in a post<name> hook must not be masked by the main script's
+      // success: a $-reference parent would otherwise receive 0 and continue.
+      final registry = ScriptsRegistry(
+        {"build": "echo build", "postbuild": "echo cancelled"},
+        runCommand: (cmd) async => cmd.contains("cancelled") ? 130 : 0,
+      );
+      expect(await registry.runScript("build"), equals(130));
+    });
+
+    test("runScript propagates SIGINT (130) from a pre-hook", () async {
+      final registry = ScriptsRegistry(
+        {"prebuild": "echo cancelled", "build": "echo build"},
+        runCommand: (cmd) async => cmd.contains("cancelled") ? 130 : 0,
+      );
+      expect(await registry.runScript("build"), equals(130));
+    });
+
+    test("runScript returns the main exit code when hooks succeed", () async {
+      final registry = ScriptsRegistry(
+        {"prebuild": "echo pre", "build": "exit 7", "postbuild": "echo post"},
+        runCommand: (cmd) async => cmd.contains("exit 7") ? 7 : 0,
+      );
+      expect(await registry.runScript("build"), equals(7));
+    });
+
     test("runScript stops when its pre-hook fails", () async {
       final directory = Directory.systemTemp.createTempSync(
         'merry-pre-hook-test-',

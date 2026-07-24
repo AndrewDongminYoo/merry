@@ -17,6 +17,7 @@ import 'package:merry/utils.dart'
         substituteVariables;
 
 final _metaKeyPattern = RegExp(r'^\(\w+\)$');
+const _sigintExitCode = 130;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
@@ -171,7 +172,8 @@ class ScriptsRegistry {
     final preScript = lookup('pre$canonical');
     if (preScript != null) {
       // A pre-hook gates the main script, so its list must fail fast: an early
-      // failure cannot be masked by a later command's success (#18).
+      // failure cannot be masked by a later command's success (#18). Any
+      // non-zero exit — including a SIGINT's 130 (#23) — aborts before main.
       final preExitCode = await _runScript(
         'pre$canonical',
         stopOnFirstFailure: true,
@@ -180,9 +182,13 @@ class ScriptsRegistry {
     }
 
     final exitCode = await _runScript(canonical, extra: extra);
+    if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
-    if (postScript != null) await _runScript('post$canonical');
+    if (postScript != null) {
+      final postExitCode = await _runScript('post$canonical');
+      if (postExitCode == _sigintExitCode) return postExitCode;
+    }
 
     return exitCode;
   }
@@ -224,10 +230,12 @@ class ScriptsRegistry {
         );
       }
 
-      // Stop on the first failure when the caller demands it (a pre-hook gate,
-      // whose later command's success must not mask an earlier failure) or when
-      // `(execution): once` asks for fail-fast. `multiple` runs every command.
-      if (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once')) {
+      // Stop the list on a SIGINT (130) so Ctrl+C ends the sequence even in
+      // `multiple` mode (#23); otherwise stop on the first failure only when the
+      // caller demands it (a pre-hook gate, whose later command's success must
+      // not mask an earlier failure) or when `(execution): once` asks for
+      // fail-fast. `multiple` still runs every command that merely fails.
+      if (exitCode == _sigintExitCode || (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once'))) {
         break;
       }
     }
