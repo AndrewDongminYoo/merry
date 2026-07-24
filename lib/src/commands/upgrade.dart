@@ -1,17 +1,39 @@
-import 'dart:io' show stdout;
+import 'dart:io' show Platform, Process, ProcessStartMode, stdout;
 
 import 'package:args/command_runner.dart';
 import 'package:merry/utils.dart';
 import 'package:merry/version.dart';
 import 'package:tint/tint.dart';
 
+typedef ProcessRunner =
+    Future<int> Function(
+      String executable,
+      List<String> arguments,
+    );
+
+Future<int> _runProcess(
+  String executable,
+  List<String> arguments,
+) async {
+  final process = await Process.start(
+    executable,
+    arguments,
+    mode: ProcessStartMode.inheritStdio,
+  );
+  return process.exitCode;
+}
+
 /// The `merry upgrade` command
 /// which will attempt to run the pub command to
 /// upgrade the merry package itself.
 ///
 /// It's an equivalent of executing the
-/// `dart run pub global activate merry` by yourself.
+/// `dart pub global activate merry` by yourself.
 class UpgradeCommand extends Command<int> {
+  UpgradeCommand({ProcessRunner processRunner = _runProcess}) : _processRunner = processRunner;
+
+  final ProcessRunner _processRunner;
+
   @override
   String get name => 'upgrade';
 
@@ -23,11 +45,11 @@ class UpgradeCommand extends Command<int> {
     rejectRest(super.argResults!, usage);
 
     const info = Info(name: 'merry', version: packageVersion);
-    final registry = ScriptsRegistry({
-      'upgrade': 'dart run pub global activate merry',
-    });
 
     stdout.writeln('> $info upgrade'.bold());
-    return registry.runScript('upgrade');
+    return _processRunner(
+      Platform.resolvedExecutable,
+      const ['pub', 'global', 'activate', 'merry'],
+    );
   }
 }
