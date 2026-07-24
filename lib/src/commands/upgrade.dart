@@ -16,6 +16,9 @@ class UpgradeCommand extends Command<int> {
   String get name => 'upgrade';
 
   @override
+  List<String> get aliases => const ['update'];
+
+  @override
   String get description => 'upgrade to the latest version of merry itself';
 
   @override
