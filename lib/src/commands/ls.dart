@@ -86,6 +86,9 @@ class ListCommand extends Command<int> {
       final entry = <String, dynamic>{'name': name, 'commands': def.scripts};
       if (def.description != null) entry['description'] = def.description;
       if (def.workdir != null) entry['workdir'] = def.workdir;
+      // Surface a non-default execution mode so tooling can tell whether later
+      // commands keep running after a failure.
+      if (def.execution != 'multiple') entry['execution'] = def.execution;
 
       // hooks that run automatically before/after this script
       final hooks = <String, String>{};

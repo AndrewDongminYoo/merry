@@ -170,7 +170,12 @@ class ScriptsRegistry {
 
     final preScript = lookup('pre$canonical');
     if (preScript != null) {
-      final preExitCode = await _runScript('pre$canonical');
+      // A pre-hook gates the main script, so its list must fail fast: an early
+      // failure cannot be masked by a later command's success (#18).
+      final preExitCode = await _runScript(
+        'pre$canonical',
+        stopOnFirstFailure: true,
+      );
       if (preExitCode != 0) return preExitCode;
     }
 
@@ -182,7 +187,11 @@ class ScriptsRegistry {
     return exitCode;
   }
 
-  Future<int> _runScript(String scriptString, {List<String> extra = const []}) async {
+  Future<int> _runScript(
+    String scriptString, {
+    List<String> extra = const [],
+    bool stopOnFirstFailure = false,
+  }) async {
     final definition = getDefinition(scriptString);
     var exitCode = 0;
 
@@ -215,10 +224,12 @@ class ScriptsRegistry {
         );
       }
 
-      // Stop the list at its first failure so a later command's success cannot
-      // mask an earlier non-zero exit. A list-valued pre-hook would otherwise
-      // report success and let the protected main script run anyway.
-      if (exitCode != 0) break;
+      // Stop on the first failure when the caller demands it (a pre-hook gate,
+      // whose later command's success must not mask an earlier failure) or when
+      // `(execution): once` asks for fail-fast. `multiple` runs every command.
+      if (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once')) {
+        break;
+      }
     }
 
     return exitCode;
