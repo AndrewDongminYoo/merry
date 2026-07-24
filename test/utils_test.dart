@@ -1,4 +1,4 @@
-import 'dart:io' show Directory, File, IOOverrides, Platform;
+import 'dart:io' show Directory, File, IOOverrides, Platform, Process;
 
 import 'package:merry/error.dart';
 import 'package:merry/utils.dart';
@@ -351,8 +351,41 @@ c:
         substituteVariables('dart build --output \${OUTPUT}', {
           'OUTPUT': 'build',
         }),
-        equals('dart build --output build'),
+        equals(
+          Platform.isWindows
+              ? 'dart build --output build'
+              : r'OUTPUT=build; export OUTPUT; dart build --output ${OUTPUT}',
+        ),
       );
+    });
+
+    test('treats variable values as data instead of shell source', () {
+      expect(
+        substituteVariables('echo "\${BRANCH}"', {
+          'BRANCH': r'$(touch /tmp/pwned)',
+        }),
+        equals(
+          Platform.isWindows
+              ? r'echo "^$(touch /tmp/pwned^)"'
+              : r'''BRANCH='$(touch /tmp/pwned)'; export BRANCH; echo "${BRANCH}"''',
+        ),
+      );
+    });
+
+    test('does not execute shell syntax contained in a variable', () async {
+      if (Platform.isWindows) return;
+      final marker = path.join(
+        Directory.systemTemp.path,
+        'merry-variable-injection-${DateTime.now().microsecondsSinceEpoch}',
+      );
+      final command = substituteVariables('printf %s "\${BRANCH}"', {
+        'BRANCH': '\$(touch $marker)',
+      });
+
+      final result = await Process.run('bash', ['-c', command]);
+
+      expect(result.stdout, equals('\$(touch $marker)'));
+      expect(File(marker).existsSync(), isFalse);
     });
 
     test('leaves unknown \${VAR} unchanged when not in env', () {
@@ -365,7 +398,9 @@ c:
     test('map value takes precedence over environment', () {
       expect(
         substituteVariables('echo \${PATH}', {'PATH': 'overridden'}),
-        equals('echo overridden'),
+        equals(
+          Platform.isWindows ? 'echo overridden' : r'PATH=overridden; export PATH; echo ${PATH}',
+        ),
       );
     });
   });
