@@ -177,7 +177,10 @@ class ScriptsRegistry {
     if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
-    if (postScript != null) await _runScript('post$canonical');
+    if (postScript != null) {
+      final postExitCode = await _runScript('post$canonical');
+      if (postExitCode == _sigintExitCode) return postExitCode;
+    }
 
     return exitCode;
   }
