@@ -306,6 +306,25 @@ c:
       );
       expect(result.value, isEmpty);
     });
+
+    test('escapes command substitution inside double quotes', () {
+      final result = applyPositionalArgs('echo "\$1"', [r'$(touch /tmp/pwned)']);
+
+      expect(result.key, equals(r'echo "\$(touch /tmp/pwned)"'));
+      expect(result.value, isEmpty);
+    });
+
+    test('keeps shell metacharacters inside single quotes', () {
+      final result = applyPositionalArgs("echo '\$1'", [
+        "'; touch /tmp/pwned; echo '",
+      ]);
+
+      expect(
+        result.key,
+        equals(r"echo ''\''; touch /tmp/pwned; echo '\'''"),
+      );
+      expect(result.value, isEmpty);
+    });
   });
 
   group('collectVariables', () {

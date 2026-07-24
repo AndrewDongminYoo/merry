@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+
 import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
 
 /// Replaces `$1`, `$2`, etc. in [script] with positional args from [args].
@@ -5,26 +7,44 @@ import 'package:merry/src/utils/shell_quote.dart' show shellQuote;
 /// Returns a [MapEntry] where [MapEntry.key] is the substituted script and
 /// [MapEntry.value] is the remaining unused args.
 ///
-/// Substituted values are shell-quoted, so an arg containing spaces stays a
-/// single argument. If [script] contains no `$N` tokens, [args] is returned
+/// Substituted values are escaped for their surrounding shell quote context,
+/// so they remain data even when they contain command substitutions or other
+/// metacharacters. If [script] contains no `$N` tokens, [args] is returned
 /// unchanged so it can be appended as before (backward-compatible).
-///
-/// ponytail: `$N` is spliced in as text, so the supported form is a bare
-/// `$N` — a `$N` already written inside quotes (`echo "hi $1"`) carries the
-/// added quotes through into the output. Making both forms work means letting
-/// the shell expand its own positional parameters (`bash -c script -- args`),
-/// which `cmd /C` cannot do.
 MapEntry<String, List<String>> applyPositionalArgs(String script, List<String> args) {
   final positionalPattern = RegExp(r'\$(\d+)');
   if (!positionalPattern.hasMatch(script)) return MapEntry(script, args);
 
   final usedIndices = <int>{};
+  String? openQuote;
+  var escaped = false;
+  var scannedThrough = 0;
 
   final substituted = script.replaceAllMapped(positionalPattern, (match) {
+    for (final char in script.substring(scannedThrough, match.start).split('')) {
+      if (escaped) {
+        escaped = false;
+      } else if (!Platform.isWindows && char == r'\' && openQuote != "'") {
+        escaped = true;
+      } else if (openQuote == null && (char == "'" || char == '"')) {
+        openQuote = char;
+      } else if (openQuote == char) {
+        openQuote = null;
+      }
+    }
+    scannedThrough = match.end;
+
     final index = int.parse(match.group(1)!) - 1; // $1 → args[0]
     if (index >= 0 && index < args.length) {
       usedIndices.add(index);
-      return shellQuote(args[index]);
+      final arg = args[index];
+      if (!Platform.isWindows && openQuote == '"') {
+        return arg.replaceAll(r'\', r'\\').replaceAll(r'$', r'\$').replaceAll('`', r'\`').replaceAll('"', r'\"');
+      }
+      if (!Platform.isWindows && openQuote == "'") {
+        return arg.replaceAll("'", r"'\''");
+      }
+      return shellQuote(arg);
     }
     return ''; // out-of-range token → empty string
   });
