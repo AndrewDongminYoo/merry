@@ -39,6 +39,19 @@ void main() {
       Definition.from(const {'(scripts)': 'echo 0', '(workdir)': '/tmp'}),
       equals(const Definition(scripts: ['echo 0'], workdir: '/tmp')),
     );
+
+    expect(
+      Definition.from(const {
+        '(execution)': 'once',
+        '(scripts)': ['exit 1', 'echo unsafe'],
+      }),
+      equals(
+        const Definition(
+          execution: 'once',
+          scripts: ['exit 1', 'echo unsafe'],
+        ),
+      ),
+    );
   });
 
   test("Info's toString should work", () {
@@ -445,6 +458,30 @@ c:
   });
 
   group('ScriptsRegistry class', () {
+    test('(execution): once stops after the first failed script', () async {
+      final tempDirectory = await Directory.systemTemp.createTemp(
+        'merry_fail_fast_',
+      );
+      final sentinel = File(path.join(tempDirectory.path, 'unsafe.txt'));
+      final failCommand = Platform.isWindows ? 'exit /b 7' : 'exit 7';
+      final unsafeCommand = Platform.isWindows
+          ? 'echo unsafe>"${sentinel.path}"'
+          : 'echo unsafe > ${shellQuote(sentinel.path)}';
+      final registry = ScriptsRegistry({
+        'release': {
+          executionDefinitionKey: 'once',
+          scriptsDefinitionKey: [failCommand, unsafeCommand],
+        },
+      });
+
+      try {
+        expect(await registry.runScript('release'), equals(7));
+        expect(await sentinel.exists(), isFalse);
+      } finally {
+        await tempDirectory.delete(recursive: true);
+      }
+    });
+
     test("constructor works", () {
       final sampleScriptsMap = {"script_a": "a"};
       final registry = ScriptsRegistry(sampleScriptsMap);

@@ -211,6 +211,8 @@ class ScriptsRegistry {
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
+
+      if (definition.execution == 'once' && exitCode != 0) break;
     }
 
     return exitCode;
