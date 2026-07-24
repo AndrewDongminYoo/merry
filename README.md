@@ -264,6 +264,10 @@ Define reusable variables in a `(variables)` section at the top level or inside 
 bundle: flutter build apk --output ${OUTPUT} --${MODE}
 ```
 
+On POSIX, variable values are exported into the shell environment rather than spliced into the command text, so a value containing shell metacharacters cannot inject commands.
+One consequence: a `(variables)` name that shadows a meaningful environment variable (for example `PATH`) will change how the shell resolves commands — avoid reusing such names.
+On Windows, `cmd /C` cannot expand values this way, so they are substituted inline on a best-effort basis; avoid values that contain line breaks there.
+
 **JSON output for tooling integration**
 
 Use `--output=json` (or `-o json`) to emit a machine-readable JSON payload — useful for VS Code extensions, shell scripts, or any tool that needs to enumerate available scripts programmatically.
