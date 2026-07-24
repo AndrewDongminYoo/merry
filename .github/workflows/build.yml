@@ -20,6 +20,8 @@ jobs:
           persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
 
       - name: Build Rust library
         run: cd native && cargo build --release
@@ -43,6 +45,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
         with:
+          toolchain: stable
           targets: x86_64-apple-darwin
 
       - name: Build Rust library (x86_64)
@@ -65,6 +68,8 @@ jobs:
           persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
 
       - name: Build Rust library
         run: cd native && cargo build --release
@@ -86,6 +91,8 @@ jobs:
           persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
 
       - name: Build Rust library
         run: cd native && cargo build --release
