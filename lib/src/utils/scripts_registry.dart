@@ -168,7 +168,10 @@ class ScriptsRegistry {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
-    if (preScript != null) await _runScript('pre$canonical');
+    if (preScript != null) {
+      final preExitCode = await _runScript('pre$canonical');
+      if (preExitCode != 0) return preExitCode;
+    }
 
     final exitCode = await _runScript(canonical, extra: extra);
 

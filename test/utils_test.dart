@@ -602,7 +602,25 @@ c:
       expect(registry.getAliasMap(), equals({"i": "install"}));
     });
 
-    // todo: to add tests for runScript
+    test("runScript stops when its pre-hook fails", () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'merry-pre-hook-test-',
+      );
+      final marker = File(path.join(directory.path, 'main-ran'));
+      final registry = ScriptsRegistry({
+        "predeploy": "dart definitely-not-a-command",
+        "deploy": "echo ran > ${shellQuote(marker.path)}",
+      });
+
+      try {
+        final exitCode = await registry.runScript("deploy");
+
+        expect(exitCode, isNot(0));
+        expect(marker.existsSync(), isFalse);
+      } finally {
+        directory.deleteSync(recursive: true);
+      }
+    });
   });
 
   group('ls --output=json shape', () {
