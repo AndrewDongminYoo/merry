@@ -6,6 +6,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:path/path.dart' as path;
 import 'package:test/test.dart';
+import 'package:yaml/yaml.dart' show loadYaml;
 
 @GenerateMocks([File, Directory])
 import './utils_test.mocks.dart';
@@ -38,6 +39,46 @@ void main() {
     expect(
       Definition.from(const {'(scripts)': 'echo 0', '(workdir)': '/tmp'}),
       equals(const Definition(scripts: ['echo 0'], workdir: '/tmp')),
+    );
+
+    expect(
+      Definition.from(const {
+        '(execution)': 'once',
+        '(scripts)': ['exit 1', 'echo unsafe'],
+      }),
+      equals(
+        const Definition(
+          execution: 'once',
+          scripts: ['exit 1', 'echo unsafe'],
+        ),
+      ),
+    );
+  });
+
+  test("Definition.from rejects an unknown execution mode", () {
+    // A typo must fail loudly instead of silently degrading to `multiple`,
+    // which would run every command after a failure.
+    expect(
+      () => Definition.from(const {
+        '(execution)': 'onc',
+        '(scripts)': 'echo hi',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+    expect(
+      () => Definition.from(const {
+        '(execution)': 'once ',
+        '(scripts)': 'echo hi',
+      }),
+      throwsA(isA<FormatException>()),
+    );
+  });
+
+  test("Definition.from defaults execution to multiple", () {
+    expect(Definition.from('echo hi').execution, equals('multiple'));
+    expect(
+      Definition.from(const {'(scripts)': 'echo hi'}).execution,
+      equals('multiple'),
     );
   });
 
@@ -144,6 +185,21 @@ void main() {
 
       expect(jsonmap.getPaths(), equals(['build web']));
     });
+  });
+
+  test('toJsonMap rejects cyclic YAML aliases', () {
+    final yaml = loadYaml('scripts: &scripts\n  loop: *scripts\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+  });
+
+  test('toJsonMap rejects a cyclic anchor reused as a mapping key', () {
+    // `? *foo` makes the mapping its own key; hashing that cyclic key
+    // deep-recurses in package:yaml and would overflow the stack (crashing
+    // e.g. `merry ls`) before any cycle check could run.
+    final yaml = loadYaml('foo: &foo\n  ? *foo\n  : echo hi\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
   });
 
   // grouping a bunch of tests didn't work with IOOverrides
@@ -306,6 +362,21 @@ c:
       );
       expect(result.value, isEmpty);
     });
+
+    test('rejects a referenced arg that carries a shell-active character', () {
+      // Fail-closed: a placeholder can sit inside quotes, where `$(...)` runs in
+      // double quotes and `;` runs in single quotes, so refuse rather than
+      // splice. (Only referenced args are checked; unused ones are appended in a
+      // safe unquoted position.)
+      expect(
+        () => applyPositionalArgs('echo \$1', [r'$(touch pwned)']),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => applyPositionalArgs("echo '\$1'", ['; touch pwned']),
+        throwsA(isA<FormatException>()),
+      );
+    });
   });
 
   group('collectVariables', () {
@@ -366,6 +437,19 @@ c:
       expect(
         substituteVariables('echo \${PATH}', {'PATH': 'overridden'}),
         equals('echo overridden'),
+      );
+    });
+
+    test('rejects a variable value that carries a shell-active character', () {
+      // (variables) values are spliced as text, so a `$(...)` or `;` payload
+      // must fail closed rather than reach the shell.
+      expect(
+        () => substituteVariables('echo \${V}', {'V': r'$(touch pwned)'}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(
+        () => substituteVariables('echo \${V}', {'V': '; rm -rf /'}),
+        throwsA(isA<FormatException>()),
       );
     });
   });
@@ -456,6 +540,30 @@ c:
   });
 
   group('ScriptsRegistry class', () {
+    test('(execution): once stops after the first failed script', () async {
+      // Exercised through the injected runner like the pre-hook tests: under
+      // `dart test` the native blob returns a spurious failure for every real
+      // command, so a shell-backed exit code cannot be asserted here.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          'release': {
+            executionDefinitionKey: 'once',
+            scriptsDefinitionKey: ['exit 7', 'echo unsafe'],
+          },
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains('exit 7') ? 7 : 0;
+        },
+      );
+
+      expect(await registry.runScript('release'), equals(7));
+      // Fail-fast: the once list stops at the first failure, so the second
+      // command that would have run the unsafe side effect never executes.
+      expect(ran, equals(['exit 7']));
+    });
+
     test("constructor works", () {
       final sampleScriptsMap = {"script_a": "a"};
       final registry = ScriptsRegistry(sampleScriptsMap);
@@ -638,6 +746,50 @@ c:
       );
       expect(await registry.runScript("build"), equals(7));
     });
+
+    test("runScript stops when its pre-hook fails", () async {
+      final directory = Directory.systemTemp.createTempSync(
+        'merry-pre-hook-test-',
+      );
+      final marker = File(path.join(directory.path, 'main-ran'));
+      final registry = ScriptsRegistry({
+        "predeploy": "dart definitely-not-a-command",
+        "deploy": "echo ran > ${shellQuote(marker.path)}",
+      });
+
+      try {
+        final exitCode = await registry.runScript("deploy");
+
+        expect(exitCode, isNot(0));
+        expect(marker.existsSync(), isFalse);
+      } finally {
+        directory.deleteSync(recursive: true);
+      }
+    });
+
+    test("runScript aborts when a list-valued pre-hook fails mid-list", () async {
+      // A failing validation followed by a would-be cleanup (the documented
+      // prepublish-list form): the failure must not be masked by the later
+      // command's success, or the protected script runs anyway.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "predeploy": ["exit 2", "echo cleanup"],
+          "deploy": "echo main",
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("exit 2") ? 2 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("deploy");
+
+      expect(exitCode, equals(2));
+      // Fail-fast: the list stops at the first failure, so the cleanup and the
+      // main script (reached only after a zero-status pre-hook) never run.
+      expect(ran, equals(["exit 2"]));
+    });
   });
 
   group('ls --output=json shape', () {
@@ -694,6 +846,23 @@ c:
       final entry = <String, dynamic>{'name': 'native', 'commands': def.scripts};
       if (def.workdir != null) entry['workdir'] = def.workdir;
       expect(entry['workdir'], equals('native'));
+    });
+
+    test('execution field is omitted when default (multiple)', () {
+      final def = Definition.from('echo hi');
+      final entry = <String, dynamic>{'name': 'greet', 'commands': def.scripts};
+      if (def.execution != 'multiple') entry['execution'] = def.execution;
+      expect(entry.containsKey('execution'), isFalse);
+    });
+
+    test('execution field is present when set to once', () {
+      final def = Definition.from(const {
+        executionDefinitionKey: 'once',
+        scriptsDefinitionKey: ['build', 'deploy'],
+      });
+      final entry = <String, dynamic>{'name': 'ship', 'commands': def.scripts};
+      if (def.execution != 'multiple') entry['execution'] = def.execution;
+      expect(entry['execution'], equals('once'));
     });
 
     test('hooks field lists pre/post script names when they exist', () {

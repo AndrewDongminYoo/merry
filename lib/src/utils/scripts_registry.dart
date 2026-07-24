@@ -28,6 +28,8 @@ class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
   final JsonMap scripts;
 
+  /// Runs a single command string, returning its exit code. Injectable so the
+  /// hook/list control flow can be unit-tested without spawning a real shell.
   final Future<int> Function(String) _runCommand;
 
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
@@ -169,8 +171,14 @@ class ScriptsRegistry {
 
     final preScript = lookup('pre$canonical');
     if (preScript != null) {
-      final preExitCode = await _runScript('pre$canonical');
-      if (preExitCode == _sigintExitCode) return preExitCode;
+      // A pre-hook gates the main script, so its list must fail fast: an early
+      // failure cannot be masked by a later command's success (#18). Any
+      // non-zero exit — including a SIGINT's 130 (#23) — aborts before main.
+      final preExitCode = await _runScript(
+        'pre$canonical',
+        stopOnFirstFailure: true,
+      );
+      if (preExitCode != 0) return preExitCode;
     }
 
     final exitCode = await _runScript(canonical, extra: extra);
@@ -185,7 +193,11 @@ class ScriptsRegistry {
     return exitCode;
   }
 
-  Future<int> _runScript(String scriptString, {List<String> extra = const []}) async {
+  Future<int> _runScript(
+    String scriptString, {
+    List<String> extra = const [],
+    bool stopOnFirstFailure = false,
+  }) async {
     final definition = getDefinition(scriptString);
     var exitCode = 0;
 
@@ -217,7 +229,15 @@ class ScriptsRegistry {
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
-      if (exitCode == _sigintExitCode) break;
+
+      // Stop the list on a SIGINT (130) so Ctrl+C ends the sequence even in
+      // `multiple` mode (#23); otherwise stop on the first failure only when the
+      // caller demands it (a pre-hook gate, whose later command's success must
+      // not mask an earlier failure) or when `(execution): once` asks for
+      // fail-fast. `multiple` still runs every command that merely fails.
+      if (exitCode == _sigintExitCode || (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once'))) {
+        break;
+      }
     }
 
     return exitCode;
