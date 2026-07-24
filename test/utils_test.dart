@@ -306,25 +306,79 @@ c:
       );
       expect(result.value, isEmpty);
     });
+  });
 
-    test('escapes command substitution inside double quotes', () {
-      final result = applyPositionalArgs('echo "\$1"', [r'$(touch /tmp/pwned)']);
-
-      expect(result.key, equals(r'echo "\$(touch /tmp/pwned)"'));
-      expect(result.value, isEmpty);
+  group('splitPositionalArgs (POSIX out-of-band)', () {
+    test('passes args through and appends unreferenced ones', () {
+      // The script is left untouched; bash expands \$1 from the positional
+      // list, and \$2's value is appended as before.
+      final result = splitPositionalArgs('echo \$1', ['hello', 'world']);
+      expect(result.positional, equals(['hello', 'world']));
+      expect(result.append, equals(['world']));
     });
 
-    test('keeps shell metacharacters inside single quotes', () {
-      final result = applyPositionalArgs("echo '\$1'", [
-        "'; touch /tmp/pwned; echo '",
-      ]);
+    test('appends every arg when none are referenced (pass-through)', () {
+      final result = splitPositionalArgs('jest', ['--coverage']);
+      expect(result.append, equals(['--coverage']));
+    });
 
-      expect(
-        result.key,
-        equals(r"echo ''\''; touch /tmp/pwned; echo '\'''"),
+    test('suppresses append when \$@ or \$* consumes all args', () {
+      expect(splitPositionalArgs('echo "\$@"', ['a', 'b']).append, isEmpty);
+      expect(splitPositionalArgs('echo \$*', ['a', 'b']).append, isEmpty);
+    });
+  });
+
+  group('runScript keeps injected values inert (POSIX, real shell)', () {
+    // These drive the real FFI shell, so they only mean something where it can
+    // actually spawn (e.g. a rebuilt blob in CI). A positive control proves the
+    // shell ran; if it did not, the case is skipped rather than passing
+    // vacuously. Each asserts an injected `$(...)` payload does NOT execute.
+    Future<void> expectInert(
+      JsonMap Function(String payload) buildScripts, {
+      List<String> extra = const [],
+    }) async {
+      final dir = Directory.systemTemp.createTempSync('merry-inject-');
+      final marker = File(path.join(dir.path, 'pwned'));
+      final control = File(path.join(dir.path, 'ran'));
+      final payload = '\$(touch ${shellQuote(marker.path)})';
+      try {
+        final registry = ScriptsRegistry({
+          ...buildScripts(payload),
+          '_control': 'touch ${shellQuote(control.path)}',
+        });
+        await registry.runScript('_control');
+        if (!control.existsSync()) {
+          markTestSkipped('shell did not run (FFI unavailable in this env)');
+          return;
+        }
+        await registry.runScript(
+          'x',
+          extra: extra.map((e) => e.replaceAll('PAYLOAD', payload)).toList(),
+        );
+        expect(
+          marker.existsSync(),
+          isFalse,
+          reason: 'injected \$(...) must stay literal, not execute',
+        );
+      } finally {
+        dir.deleteSync(recursive: true);
+      }
+    }
+
+    test('positional arg inside double quotes stays literal', () async {
+      await expectInert((_) => {'x': 'echo "hi \$1"'}, extra: ['PAYLOAD']);
+    }, testOn: '!windows');
+
+    test('variable value inside double quotes stays literal', () async {
+      await expectInert(
+        (payload) => {
+          'x': {
+            '(variables)': {'V': payload},
+            '(scripts)': 'echo "hi \${V}"',
+          },
+        },
       );
-      expect(result.value, isEmpty);
-    });
+    }, testOn: '!windows');
   });
 
   group('collectVariables', () {

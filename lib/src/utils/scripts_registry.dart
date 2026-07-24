@@ -1,7 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
-import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
+import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs, splitPositionalArgs;
 import 'package:merry/src/utils/shell_quote.dart' show shellChangeDirectory, shellQuote;
 import 'package:merry/utils.dart'
     show
@@ -193,15 +195,31 @@ class ScriptsRegistry {
           final cdCmd = shellChangeDirectory(definition.workdir!);
           normalizedScript = '$cdCmd $normalizedScript';
         }
-        // apply ${VAR} substitution using (variables) definitions and env
-        normalizedScript = substituteVariables(
-          normalizedScript,
-          getVariables(),
-        );
-        final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
-          _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
-        );
+
+        if (Platform.isWindows) {
+          // `cmd /C` cannot take positional parameters, so keep the best-effort
+          // inline substitution: variables and $N are quoted and spliced into
+          // the command text (see the caveats on shellQuote/applyPositionalArgs).
+          normalizedScript = substituteVariables(normalizedScript, getVariables());
+          final positional = applyPositionalArgs(normalizedScript, extra);
+          exitCode = await bindings.runScript(
+            _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
+          );
+        } else {
+          // POSIX: leave $N and ${VAR} literal and let bash expand them from
+          // out-of-band positional parameters and the environment, so untrusted
+          // values are never interpolated into shell source. Unreferenced args
+          // are appended (shell-quoted, in unquoted trailing position — safe).
+          final split = splitPositionalArgs(normalizedScript, extra);
+          final command = split.append.isEmpty
+              ? normalizedScript
+              : _joinStrings([normalizedScript, ...split.append.map(shellQuote)]);
+          exitCode = await bindings.runScript(
+            command,
+            args: split.positional,
+            env: getVariables(),
+          );
+        }
       }
     }
 

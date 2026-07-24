@@ -33,25 +33,80 @@ String getBlobFilename() {
   return supported[currentAbi]!;
 }
 
-/// Run a given input string in console in native code via dart ffi
-Future<int> runScript(String script) async {
+typedef _RunScriptDart =
+    int Function(
+      ffi.Pointer<Utf8> script,
+      ffi.Pointer<ffi.Pointer<Utf8>> argv,
+      int argc,
+      ffi.Pointer<ffi.Pointer<Utf8>> envKeys,
+      ffi.Pointer<ffi.Pointer<Utf8>> envValues,
+      int envCount,
+    );
+
+/// Marshals [items] into a C array of NUL-terminated strings. An empty list
+/// maps to `nullptr`, which the native side reads as "no entries".
+ffi.Pointer<ffi.Pointer<Utf8>> _toCArray(List<String> items) {
+  if (items.isEmpty) return ffi.nullptr;
+  final array = malloc<ffi.Pointer<Utf8>>(items.length);
+  for (var i = 0; i < items.length; i++) {
+    array[i] = items[i].toNativeUtf8();
+  }
+  return array;
+}
+
+/// Frees a C array previously built by [_toCArray], including its strings.
+void _freeCArray(ffi.Pointer<ffi.Pointer<Utf8>> array, int count) {
+  if (array == ffi.nullptr) return;
+  for (var i = 0; i < count; i++) {
+    malloc.free(array[i]);
+  }
+  malloc.free(array);
+}
+
+/// Run [script] in the platform shell via Dart FFI.
+///
+/// On POSIX, [args] are passed as the shell's own positional parameters
+/// (`$1`, `$2`, …) and [env] entries are exported for `${VAR}` expansion, so
+/// the script keeps its literal `$N`/`${VAR}` tokens and untrusted values are
+/// never spliced into shell source. `cmd /C` cannot take positional parameters,
+/// so on Windows the caller substitutes before calling and passes empty [args].
+Future<int> runScript(
+  String script, {
+  List<String> args = const [],
+  Map<String, String> env = const {},
+}) async {
   final nativeRunScriptFn = await _resolveRunScriptFn();
   final scriptPtr = script.toNativeUtf8();
+  final argvPtr = _toCArray(args);
+  final keys = env.keys.toList();
+  final values = env.values.toList();
+  final keysPtr = _toCArray(keys);
+  final valuesPtr = _toCArray(values);
   try {
-    return nativeRunScriptFn(scriptPtr);
+    return nativeRunScriptFn(
+      scriptPtr,
+      argvPtr,
+      args.length,
+      keysPtr,
+      valuesPtr,
+      keys.length,
+    );
   } finally {
     malloc.free(scriptPtr);
+    _freeCArray(argvPtr, args.length);
+    _freeCArray(keysPtr, keys.length);
+    _freeCArray(valuesPtr, values.length);
   }
 }
 
 ffi.DynamicLibrary? _dylib;
-Future<int Function(ffi.Pointer<Utf8>)>? _initFuture;
+Future<_RunScriptDart>? _initFuture;
 
 // Returning the same Future for concurrent callers prevents double-initialization
 // across await suspension points in Dart's single-threaded event loop.
-Future<int Function(ffi.Pointer<Utf8>)> _resolveRunScriptFn() => _initFuture ??= _initRunScriptFn();
+Future<_RunScriptDart> _resolveRunScriptFn() => _initFuture ??= _initRunScriptFn();
 
-Future<int Function(ffi.Pointer<Utf8>)> _initRunScriptFn() async {
+Future<_RunScriptDart> _initRunScriptFn() async {
   final resolvedPackageUri = await Isolate.resolvePackageUri(
     Uri.parse(packageUri),
   );
@@ -73,8 +128,17 @@ Future<int Function(ffi.Pointer<Utf8>)> _initRunScriptFn() async {
   }
 
   return _dylib!
-      .lookup<ffi.NativeFunction<ffi.Int32 Function(ffi.Pointer<Utf8>)>>(
-        'run_script',
-      )
-      .asFunction<int Function(ffi.Pointer<Utf8>)>();
+      .lookup<
+        ffi.NativeFunction<
+          ffi.Int32 Function(
+            ffi.Pointer<Utf8> script,
+            ffi.Pointer<ffi.Pointer<Utf8>> argv,
+            ffi.IntPtr argc,
+            ffi.Pointer<ffi.Pointer<Utf8>> envKeys,
+            ffi.Pointer<ffi.Pointer<Utf8>> envValues,
+            ffi.IntPtr envCount,
+          )
+        >
+      >('run_script')
+      .asFunction<_RunScriptDart>();
 }
