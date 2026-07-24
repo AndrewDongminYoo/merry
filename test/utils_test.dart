@@ -153,6 +153,15 @@ void main() {
     expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
   });
 
+  test('toJsonMap rejects a cyclic anchor reused as a mapping key', () {
+    // `? *foo` makes the mapping its own key; hashing that cyclic key
+    // deep-recurses in package:yaml and would overflow the stack (crashing
+    // e.g. `merry ls`) before any cycle check could run.
+    final yaml = loadYaml('foo: &foo\n  ? *foo\n  : echo hi\n') as Map;
+
+    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+  });
+
   // grouping a bunch of tests didn't work with IOOverrides
   // therefore we have a big test instead
   test('Pubspec class', () {

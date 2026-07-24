@@ -22,9 +22,16 @@ JsonMap _toJsonMap(Map<dynamic, dynamic> map, Set<Map<dynamic, dynamic>> ancesto
   }
 
   final result = <String, dynamic>{};
-  for (final entry in map.entries) {
-    final value = entry.value;
-    result[entry.key.toString()] = value is Map ? _toJsonMap(value, ancestors) : value;
+  // Iterate keys and reject collection-valued keys (e.g. a YAML `? *anchor`
+  // that aliases the mapping itself) before any `map[key]` lookup: hashing a
+  // cyclic collection key deep-recurses inside package:yaml and overflows the
+  // stack before the identity cycle check above could ever run.
+  for (final key in map.keys) {
+    if (key is Map || key is List) {
+      throw const FormatException('Collection map keys are not supported.');
+    }
+    final value = map[key];
+    result[key.toString()] = value is Map ? _toJsonMap(value, ancestors) : value;
   }
   ancestors.remove(map);
   return result;
