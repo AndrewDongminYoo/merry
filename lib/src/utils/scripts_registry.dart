@@ -17,6 +17,7 @@ import 'package:merry/utils.dart'
         substituteVariables;
 
 final _metaKeyPattern = RegExp(r'^\(\w+\)$');
+const _sigintExitCode = 130;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
@@ -27,8 +28,14 @@ class ScriptsRegistry {
   /// A map of scripts retrieved from `pubspec.yaml`.
   final JsonMap scripts;
 
+  final Future<int> Function(String) _runCommand;
+
   /// Constructs a [ScriptsRegistry] from a [JsonMap].
-  ScriptsRegistry(JsonMap scriptsMap) : scripts = scriptsMap;
+  ScriptsRegistry(
+    JsonMap scriptsMap, {
+    Future<int> Function(String)? runCommand,
+  }) : scripts = scriptsMap,
+       _runCommand = runCommand ?? bindings.runScript;
 
   /// A list of all possible paths,
   /// used as a mean of memoization.
@@ -161,9 +168,13 @@ class ScriptsRegistry {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
-    if (preScript != null) await _runScript('pre$canonical');
+    if (preScript != null) {
+      final preExitCode = await _runScript('pre$canonical');
+      if (preExitCode == _sigintExitCode) return preExitCode;
+    }
 
     final exitCode = await _runScript(canonical, extra: extra);
+    if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
     if (postScript != null) await _runScript('post$canonical');
@@ -199,10 +210,11 @@ class ScriptsRegistry {
           getVariables(),
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await bindings.runScript(
+        exitCode = await _runCommand(
           _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
         );
       }
+      if (exitCode == _sigintExitCode) break;
     }
 
     return exitCode;
