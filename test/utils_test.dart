@@ -790,6 +790,53 @@ c:
       // main script (reached only after a zero-status pre-hook) never run.
       expect(ran, equals(["exit 2"]));
     });
+
+    test("(execution): multiple runs every command after a plain failure", () async {
+      // The Definition contract is "`multiple` to run every script": a plain
+      // non-zero exit must not stop the list. Guards the once-vs-multiple call.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "check": {
+            "(execution)": "multiple",
+            "(scripts)": ["fail lint", "run other"],
+          },
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("fail") ? 7 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("check");
+
+      // Runs all; the exit code is the last command's, not the earlier failure.
+      expect(exitCode, equals(0));
+      expect(ran, equals(["fail lint", "run other"]));
+    });
+
+    test("(execution): multiple still stops the list on a SIGINT (130)", () async {
+      // Ctrl+C must end the sequence even in multiple mode, unlike a plain
+      // failure. Guards the `exitCode == _sigintExitCode` clause of the break.
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "check": {
+            "(execution)": "multiple",
+            "(scripts)": ["cancelled step", "run other"],
+          },
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("cancelled") ? 130 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("check");
+
+      expect(exitCode, equals(130));
+      expect(ran, equals(["cancelled step"]));
+    });
   });
 
   group('ls --output=json shape', () {
