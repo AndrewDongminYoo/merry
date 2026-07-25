@@ -798,8 +798,8 @@ c:
       final registry = ScriptsRegistry(
         {
           "check": {
-            "(execution)": "multiple",
-            "(scripts)": ["fail lint", "run other"],
+            executionDefinitionKey: "multiple",
+            scriptsDefinitionKey: ["fail lint", "run other"],
           },
         },
         runCommand: (cmd) async {
@@ -822,8 +822,8 @@ c:
       final registry = ScriptsRegistry(
         {
           "check": {
-            "(execution)": "multiple",
-            "(scripts)": ["cancelled step", "run other"],
+            executionDefinitionKey: "multiple",
+            scriptsDefinitionKey: ["cancelled step", "run other"],
           },
         },
         runCommand: (cmd) async {

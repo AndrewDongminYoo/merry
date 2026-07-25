@@ -1,3 +1,18 @@
+## [2.1.3] - 2026-07-25
+
+### Fixed
+
+- Refuse to run a script when a substituted positional argument or `(variables)` value contains shell-active characters, closing quote-context command injection
+- Reject cyclic YAML map aliases used as mapping keys instead of overflowing the stack and crashing commands such as `merry ls`
+- Abort a script when its pre-hook fails, including list-valued pre-hooks whose later commands previously masked the failure
+- Reject unknown `(execution)` values instead of silently degrading to `multiple`, restoring once-mode fail-fast execution, and expose the execution mode in `merry ls --output=json`
+- Stop the remaining script list after Ctrl+C (SIGINT), and propagate a post-hook's SIGINT instead of reporting success
+
+### Internal
+
+- Harden the native blob workflow (pin rust-toolchain to stable alongside the SHA pin)
+- Isolate pub publish credentials in the publishing workflow
+
 ## [2.1.2] - 2026-07-24
 
 ### Fixed
