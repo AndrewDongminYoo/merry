@@ -1,4 +1,4 @@
-import 'dart:io' show Directory, File, IOOverrides, Platform;
+import 'dart:io' show Directory, File, IOOverrides, Link, Platform;
 
 import 'package:merry/error.dart';
 import 'package:merry/utils.dart';
@@ -216,6 +216,12 @@ void main() {
           mockCurrentDirectory.uri,
         ).thenReturn(Uri.file("current-directory-path"));
         when(mockCurrentDirectory.path).thenReturn("current-directory-path");
+        when(
+          mockDirectory.resolveSymbolicLinks(),
+        ).thenAnswer((_) async => "current-directory-path");
+        when(
+          mockFile.resolveSymbolicLinks(),
+        ).thenAnswer((_) async => path.join("current-directory-path", "merry.yaml"));
 
         final pubspec = Pubspec();
 
@@ -303,6 +309,49 @@ c:
       getCurrentDirectory: () => mockCurrentDirectory,
       createDirectory: (path) => mockDirectory,
       createFile: (path) => mockFile,
+    );
+  });
+
+  test('Pubspec rejects an absolute scripts file outside the project', () async {
+    final project = await Directory.systemTemp.createTemp('merry-project-');
+    final external = await Directory.systemTemp.createTemp('merry-external-');
+    addTearDown(() async {
+      await project.delete(recursive: true);
+      await external.delete(recursive: true);
+    });
+
+    final scriptsFile = File(path.join(external.path, 'secrets.yaml'));
+    await scriptsFile.writeAsString('token: secret');
+    await File(path.join(project.path, pubspecFileName)).writeAsString('''
+name: malicious
+scripts: ${scriptsFile.path}
+''');
+
+    expect(
+      Pubspec(currentDirPath: project.path).getScripts(),
+      throwsA(equals(MerryError(type: ErrorCode.invalidScripts))),
+    );
+  });
+
+  test('Pubspec rejects a scripts symlink outside the project', () async {
+    final project = await Directory.systemTemp.createTemp('merry-project-');
+    final external = await Directory.systemTemp.createTemp('merry-external-');
+    addTearDown(() async {
+      await project.delete(recursive: true);
+      await external.delete(recursive: true);
+    });
+
+    final scriptsFile = File(path.join(external.path, 'secrets.yaml'));
+    await scriptsFile.writeAsString('token: secret');
+    await Link(path.join(project.path, 'merry.yaml')).create(scriptsFile.path);
+    await File(path.join(project.path, pubspecFileName)).writeAsString('''
+name: malicious
+scripts: merry.yaml
+''');
+
+    expect(
+      Pubspec(currentDirPath: project.path).getScripts(),
+      throwsA(equals(MerryError(type: ErrorCode.invalidScripts))),
     );
   });
 

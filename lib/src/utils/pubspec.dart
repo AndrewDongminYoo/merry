@@ -14,8 +14,7 @@ class Pubspec {
   /// File path of `pubspec.yaml` in current directory.
   final String filePath;
 
-  Pubspec({String? currentDirPath})
-    : filePath = path.join(currentDirPath ?? Directory.current.path, pubspecFileName);
+  Pubspec({String? currentDirPath}) : filePath = path.join(currentDirPath ?? Directory.current.path, pubspecFileName);
 
   /// Text content of `pubspec.yaml` once it has been read,
   /// used as a mean of memoization.
@@ -86,6 +85,23 @@ class Pubspec {
       return content[scriptsKey] as JsonMap;
     }
 
-    return readYamlMap(source).then((map) => map.toJsonMap());
+    final projectPath = path.dirname(filePath);
+    final scriptsPath = path.normalize(path.join(projectPath, source));
+    if (!path.isWithin(projectPath, scriptsPath)) {
+      throw MerryError(type: ErrorCode.invalidScripts);
+    }
+
+    final scriptsFile = File(scriptsPath);
+    if (await scriptsFile.exists()) {
+      final resolvedProjectPath = await Directory(projectPath).resolveSymbolicLinks();
+      final resolvedScriptsPath = await scriptsFile.resolveSymbolicLinks();
+      if (!path.isWithin(resolvedProjectPath, resolvedScriptsPath)) {
+        throw MerryError(type: ErrorCode.invalidScripts);
+      }
+
+      return readYamlMap(resolvedScriptsPath).then((map) => map.toJsonMap());
+    }
+
+    return readYamlMap(scriptsPath).then((map) => map.toJsonMap());
   }
 }
