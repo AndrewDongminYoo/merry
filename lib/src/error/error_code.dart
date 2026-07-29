@@ -6,6 +6,9 @@ enum ErrorCode {
   /// throw when a specific script definition is not valid
   invalidScript,
 
+  /// throw when script references form a cycle
+  circularReference,
+
   /// throw when unable to locate script definitions
   /// due to missing `scripts` key in `pubspec.yaml`
   missingScripts,
