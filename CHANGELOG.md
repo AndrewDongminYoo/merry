@@ -1,3 +1,18 @@
+## [2.1.4] - 2026-07-30
+
+### Fixed
+
+- Run `merry upgrade` through the Dart SDK that launched the process instead of a shell command; the self-upgrade previously failed outright with ``Could not find package `pub` `` and resolved `dart` from `PATH`
+- Report the running version from `merry --version`, which had been stuck at 2.1.2 since the 2.1.3 release
+- Reject a circular `$script` reference with an error naming the cycle, instead of looping until the process is killed
+- Constrain an external `scripts:` file to the project directory. A value that escapes it — an absolute path such as `scripts: /etc/hosts`, or a symlink pointing outside — is now refused. In-project filenames like `scripts: merry.yaml` are unaffected, but a deliberate `scripts: ../shared/merry.yaml` no longer resolves
+
+### Internal
+
+- Run the test suite on pull requests and pushes to main; it previously ran only on a release tag, so a regression could reach main and surface at publish time
+- Pin every workflow checkout to a commit SHA and stop it persisting a repository credential, with a test sweeping all workflows for both
+- Upgrade trunk linters, and enable clippy, shellcheck and shfmt
+
 ## [2.1.3] - 2026-07-25
 
 ### Fixed
