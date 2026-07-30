@@ -63,6 +63,30 @@ chmod +x "${repo}/native/helper"
 git -C "${repo}" add native/helper
 expect_stale "an executable-bit change"
 
+# A crate that exists only in the working tree is not in the tracked manifest
+# list, so its directory has to be discovered from untracked manifests too —
+# otherwise nothing about it is reported until staging invalidates the stamp.
+# Runs before the workspace fixture below, which puts a Cargo.toml at the root
+# and from then on widens the pathspec to everything, hiding this distinction.
+"${repo}/.github/scripts/check-blobs.sh" write >/dev/null
+mkdir -p "${repo}/crates/fresh/src"
+printf '%s\n' '[package]' 'name = "fresh"' >"${repo}/crates/fresh/Cargo.toml"
+printf '%s\n' 'fn main() {}' >"${repo}/crates/fresh/src/main.rs"
+if ! output=$("${repo}/.github/scripts/check-blobs.sh" 2>&1); then
+	echo "expected an untracked crate to still verify against the index"
+	echo "${output}"
+	exit 1
+fi
+case "${output}" in
+*"crates/fresh/Cargo.toml"*"crates/fresh/src/main.rs"*) ;;
+*)
+	echo "expected an untracked crate to be reported"
+	echo "${output}"
+	exit 1
+	;;
+esac
+rm -r "${repo}/crates/fresh"
+
 mkdir -p "${repo}/crates/helper"
 printf '%s\n' '[workspace]' 'members = ["native", "crates/helper"]' >"${repo}/Cargo.toml"
 printf '%s\n' '[package]' 'name = "helper"' >"${repo}/crates/helper/Cargo.toml"

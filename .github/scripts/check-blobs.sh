@@ -14,10 +14,13 @@ STAMP="lib/src/blobs/native.sha256"
 
 # Cargo package trees and repository-level configuration, minus the checked-in
 # output blobs so the stamp is not hashing itself.
+# Untracked manifests count: a crate that is only created, not added yet, still
+# widens this list the moment it is staged, so the warning below has to be able
+# to see it. It cannot move the hash — an unstaged tree has no index entries.
 trees=(native .cargo/config .cargo/config.toml)
 while IFS= read -r -d '' manifest; do
 	trees+=("$(dirname "${manifest}")")
-done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
+done < <(git ls-files -z --cached --others --exclude-standard -- Cargo.toml ':(glob)**/Cargo.toml')
 
 EXCLUDE_BLOBS=':(exclude,glob)lib/src/blobs/**'
 
