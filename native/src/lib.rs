@@ -1,4 +1,4 @@
-use colored::*;
+use colored::Colorize;
 use shared_child::SharedChild;
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -50,7 +50,7 @@ mod tty {
                 return None;
             }
 
-            Some(ForegroundGuard { previous })
+            Some(Self { previous })
         }
     }
 
@@ -111,6 +111,13 @@ fn kill_group(pgid: libc::pid_t) {
 /// `ptr` must be a non-null pointer to a NUL-terminated C string that stays
 /// valid and unmodified for the duration of the call. A null `ptr` is reported
 /// as [`ERR_NULL_PTR`] rather than dereferenced.
+///
+/// # Panics
+///
+/// Panics if the child registry mutex is poisoned. The crate is built with
+/// `panic = "abort"`, which is also why it cannot be: a panic takes the host
+/// process down rather than unwinding across the FFI boundary, so no thread
+/// ever leaves the mutex poisoned behind it.
 #[no_mangle]
 pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
     if ptr.is_null() {
@@ -190,9 +197,8 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
     let status = child.wait();
     forget_child(&child);
 
-    let status = match status {
-        Ok(result) => result,
-        Err(_) => return ERR_SPAWN,
+    let Ok(status) = status else {
+        return ERR_SPAWN;
     };
 
     #[cfg(unix)]
@@ -206,7 +212,7 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
             kill_group(pgid);
             return 128 + signal;
         }
-        return status.code().unwrap_or(ERR_SPAWN);
+        status.code().unwrap_or(ERR_SPAWN)
     }
 
     #[cfg(not(unix))]
