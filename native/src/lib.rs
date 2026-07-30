@@ -114,10 +114,11 @@ fn kill_group(pgid: libc::pid_t) {
 ///
 /// # Panics
 ///
-/// Panics if the child registry mutex is poisoned. The crate is built with
-/// `panic = "abort"`, which is also why it cannot be: a panic takes the host
-/// process down rather than unwinding across the FFI boundary, so no thread
-/// ever leaves the mutex poisoned behind it.
+/// Panics if the child registry mutex is poisoned. Release builds — the ones
+/// shipped as blobs — set `panic = "abort"`, so nothing unwinds far enough to
+/// poison it. A debug build has no such profile and unwinds, where a panic on
+/// the Ctrl+C handler's thread could poison the lock and surface here on the
+/// next call.
 #[no_mangle]
 pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
     if ptr.is_null() {
