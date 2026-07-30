@@ -27,18 +27,22 @@ hash_sources() {
 		sort -z -u
 }
 
-# The hash comes from the index, so an edit left unstaged does not reach it and
-# the answer below would not cover that edit. CI checks out clean and never
-# trips this; a local run before `git add` otherwise reports a reassuring match.
+# The hash comes from the index, so anything not staged does not reach it and
+# the answer below would not cover it — a modified tracked file, or a new one
+# that is not added yet. CI checks out clean and never trips this; a local run
+# before `git add` otherwise reports a reassuring match.
 warn_on_unstaged() {
-	local unstaged path
-	unstaged="$(git diff --name-only -- "${trees[@]}" "${EXCLUDE_BLOBS}")"
-	[[ -n ${unstaged} ]] || return 0
+	local pending path
+	pending="$(
+		git diff --name-only -- "${trees[@]}" "${EXCLUDE_BLOBS}"
+		git ls-files --others --exclude-standard -- "${trees[@]}" "${EXCLUDE_BLOBS}"
+	)"
+	[[ -n ${pending} ]] || return 0
 
-	echo "::warning::Unstaged changes are not covered by this check:" >&2
+	echo "::warning::Unstaged and untracked changes are not covered by this check:" >&2
 	while IFS= read -r path; do
 		printf '  %s\n' "${path}" >&2
-	done <<<"${unstaged}"
+	done <<<"${pending}"
 	echo "  The result below reflects the index. Stage them to include them." >&2
 }
 

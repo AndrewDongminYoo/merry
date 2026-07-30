@@ -83,7 +83,7 @@ if ! output=$("${repo}/.github/scripts/check-blobs.sh" 2>&1); then
 	exit 1
 fi
 case "${output}" in
-*"Unstaged changes are not covered"*"native/src/lib.rs"*) ;;
+*"not covered by this check"*"native/src/lib.rs"*) ;;
 *)
 	echo "expected the unstaged edit to be reported"
 	echo "${output}"
@@ -92,5 +92,42 @@ case "${output}" in
 esac
 git -C "${repo}" checkout -- native/src/lib.rs
 
+# A file that is new rather than modified is absent from `git diff` entirely,
+# so it needs the untracked listing to be reported at all.
+printf '%s\n' 'fn helper() {}' >"${repo}/native/src/added.rs"
+if ! output=$("${repo}/.github/scripts/check-blobs.sh" 2>&1); then
+	echo "expected an untracked file to still verify against the index"
+	echo "${output}"
+	exit 1
+fi
+case "${output}" in
+*"not covered by this check"*"native/src/added.rs"*) ;;
+*)
+	echo "expected the untracked file to be reported"
+	echo "${output}"
+	exit 1
+	;;
+esac
+rm "${repo}/native/src/added.rs"
+
+# Build output is ignored, so it must not be reported as pending work. Matched
+# by path rather than by the warning line: the workspace fixture above put a
+# Cargo.toml at the root, which widens the pathspec to the whole repo, so other
+# untracked fixture files legitimately appear in that list.
+mkdir -p "${repo}/native/target"
+printf '%s\n' 'target' >"${repo}/native/.gitignore"
+git -C "${repo}" add native/.gitignore
+"${repo}/.github/scripts/check-blobs.sh" write >/dev/null
+printf '%s\n' 'binary' >"${repo}/native/target/artifact"
+output=$("${repo}/.github/scripts/check-blobs.sh" 2>&1)
+case "${output}" in
+*"native/target/artifact"*)
+	echo "expected ignored build output to stay quiet"
+	echo "${output}"
+	exit 1
+	;;
+*) ;;
+esac
+
 echo "all Cargo input changes invalidate the native blob stamp"
-echo "an unstaged change is reported rather than silently excluded"
+echo "unstaged and untracked changes are reported rather than silently excluded"
