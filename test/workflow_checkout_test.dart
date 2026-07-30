@@ -22,7 +22,11 @@ void main() {
       final jobs = (loadYaml(file.readAsStringSync()) as YamlMap)['jobs'] as YamlMap;
 
       for (final entry in jobs.entries) {
-        final steps = (entry.value as YamlMap)['steps'] as YamlList;
+        // A `jobs.<id>.uses` job calls a reusable workflow and has no steps of
+        // its own; the callee is swept on its own turn.
+        final steps = (entry.value as YamlMap)['steps'];
+        if (steps is! YamlList) continue;
+
         final where = '${file.path} [${entry.key}]';
 
         for (final step in steps.whereType<YamlMap>()) {
