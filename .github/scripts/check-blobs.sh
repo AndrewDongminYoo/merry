@@ -12,17 +12,41 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
-# Cargo package trees and repository-level configuration are included, while
-# checked-in output blobs are excluded to avoid hashing the stamp itself.
-hash_sources() {
-	local trees=(native .cargo/config .cargo/config.toml)
-	while IFS= read -r -d '' manifest; do
-		trees+=("$(dirname "${manifest}")")
-	done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
+# Cargo package trees and repository-level configuration, minus the checked-in
+# output blobs so the stamp is not hashing itself.
+# Untracked manifests count: a crate that is only created, not added yet, still
+# widens this list the moment it is staged, so the warning below has to be able
+# to see it. It cannot move the hash — an unstaged tree has no index entries.
+trees=(native .cargo/config .cargo/config.toml)
+while IFS= read -r -d '' manifest; do
+	trees+=("$(dirname "${manifest}")")
+done < <(git ls-files -z --cached --others --exclude-standard -- Cargo.toml ':(glob)**/Cargo.toml')
 
-	git ls-files --stage -z -- "${trees[@]}" ':(exclude,glob)lib/src/blobs/**' |
+EXCLUDE_BLOBS=':(exclude,glob)lib/src/blobs/**'
+
+# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
+hash_sources() {
+	git ls-files --stage -z -- "${trees[@]}" "${EXCLUDE_BLOBS}" |
 		sort -z -u
+}
+
+# The hash comes from the index, so anything not staged does not reach it and
+# the answer below would not cover it — a modified tracked file, or a new one
+# that is not added yet. CI checks out clean and never trips this; a local run
+# before `git add` otherwise reports a reassuring match.
+warn_on_unstaged() {
+	local pending path
+	pending="$(
+		git diff --name-only -- "${trees[@]}" "${EXCLUDE_BLOBS}"
+		git ls-files --others --exclude-standard -- "${trees[@]}" "${EXCLUDE_BLOBS}"
+	)"
+	[[ -n ${pending} ]] || return 0
+
+	echo "::warning::Unstaged and untracked changes are not covered by this check:" >&2
+	while IFS= read -r path; do
+		printf '  %s\n' "${path}" >&2
+	done <<<"${pending}"
+	echo "  The result below reflects the index. Stage them to include them." >&2
 }
 
 sha256() {
@@ -32,6 +56,8 @@ sha256() {
 		shasum -a 256 | cut -d ' ' -f 1
 	fi
 }
+
+warn_on_unstaged
 
 current="$(hash_sources | sha256)"
 
