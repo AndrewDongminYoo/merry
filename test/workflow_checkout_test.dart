@@ -30,7 +30,11 @@ void main() {
         final where = '${file.path} [${entry.key}]';
 
         for (final step in steps.whereType<YamlMap>()) {
-          if (step['uses'] case final String action when action.startsWith('actions/checkout@')) {
+          // Lowercased before matching: GitHub resolves owner/repo
+          // case-insensitively, so `Actions/Checkout@v4` runs the same action
+          // and must not slip past the policy.
+          if (step['uses'] case final String uses when uses.toLowerCase().startsWith('actions/checkout@')) {
+            final action = uses.toLowerCase();
             expect(action, matches(pinnedToSha), reason: '$where must pin checkout to a commit SHA');
             expect(
               (step['with'] as YamlMap?)?['persist-credentials'],
