@@ -12,17 +12,34 @@ cd "$(dirname "$0")/../.."
 
 STAMP="lib/src/blobs/native.sha256"
 
-# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
-# Cargo package trees and repository-level configuration are included, while
-# checked-in output blobs are excluded to avoid hashing the stamp itself.
-hash_sources() {
-	local trees=(native .cargo/config .cargo/config.toml)
-	while IFS= read -r -d '' manifest; do
-		trees+=("$(dirname "${manifest}")")
-	done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
+# Cargo package trees and repository-level configuration, minus the checked-in
+# output blobs so the stamp is not hashing itself.
+trees=(native .cargo/config .cargo/config.toml)
+while IFS= read -r -d '' manifest; do
+	trees+=("$(dirname "${manifest}")")
+done < <(git ls-files -z -- Cargo.toml ':(glob)**/Cargo.toml')
 
-	git ls-files --stage -z -- "${trees[@]}" ':(exclude,glob)lib/src/blobs/**' |
+EXCLUDE_BLOBS=':(exclude,glob)lib/src/blobs/**'
+
+# Git stage entries bind tracked paths, contents, symlink targets, and file modes.
+hash_sources() {
+	git ls-files --stage -z -- "${trees[@]}" "${EXCLUDE_BLOBS}" |
 		sort -z -u
+}
+
+# The hash comes from the index, so an edit left unstaged does not reach it and
+# the answer below would not cover that edit. CI checks out clean and never
+# trips this; a local run before `git add` otherwise reports a reassuring match.
+warn_on_unstaged() {
+	local unstaged path
+	unstaged="$(git diff --name-only -- "${trees[@]}" "${EXCLUDE_BLOBS}")"
+	[[ -n ${unstaged} ]] || return 0
+
+	echo "::warning::Unstaged changes are not covered by this check:" >&2
+	while IFS= read -r path; do
+		printf '  %s\n' "${path}" >&2
+	done <<<"${unstaged}"
+	echo "  The result below reflects the index. Stage them to include them." >&2
 }
 
 sha256() {
@@ -32,6 +49,8 @@ sha256() {
 		shasum -a 256 | cut -d ' ' -f 1
 	fi
 }
+
+warn_on_unstaged
 
 current="$(hash_sources | sha256)"
 

@@ -73,4 +73,24 @@ printf 'after' >"${repo}/crates/helper/input"
 git -C "${repo}" add crates/helper/input
 expect_stale "an ancestor workspace input"
 
+# The stamp is computed from the index, so an unstaged edit cannot change it —
+# the check still passes, and has to say that its answer does not cover it.
+"${repo}/.github/scripts/check-blobs.sh" write >/dev/null
+printf '%s\n' '// unstaged edit' >>"${repo}/native/src/lib.rs"
+if ! output=$("${repo}/.github/scripts/check-blobs.sh" 2>&1); then
+	echo "expected an unstaged edit to still verify against the index"
+	echo "${output}"
+	exit 1
+fi
+case "${output}" in
+*"Unstaged changes are not covered"*"native/src/lib.rs"*) ;;
+*)
+	echo "expected the unstaged edit to be reported"
+	echo "${output}"
+	exit 1
+	;;
+esac
+git -C "${repo}" checkout -- native/src/lib.rs
+
 echo "all Cargo input changes invalidate the native blob stamp"
+echo "an unstaged change is reported rather than silently excluded"
