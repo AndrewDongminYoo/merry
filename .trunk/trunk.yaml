@@ -7,22 +7,24 @@ cli:
 plugins:
   sources:
     - id: trunk
-      ref: v1.7.6
+      ref: v1.11.0
       uri: https://github.com/trunk-io/plugins
 # Many linters and tools depend on runtimes - configure them here. (https://docs.trunk.io/runtimes)
 runtimes:
   enabled:
     - go@1.21.0
     - node@22.16.0
-    - python@3.10.8
+    - python@3.14.4
 # This is the section where you manage your linters. (https://docs.trunk.io/check/configuration)
 lint:
   disabled:
     - dart
   enabled:
+    - grype@0.110.0
+    - pinact@4.0.0
     - clippy@1.97.1
     - shellcheck@0.11.0
-    - shfmt@3.6.0
+    - shfmt@3.13.1
     - actionlint@1.7.12
     - checkov@3.3.8
     - git-diff-check
