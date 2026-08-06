@@ -110,6 +110,26 @@ dev_dependencies:
     expect(read('merry.yaml'), isNot(contains('dev:')));
   });
 
+  test('ignores regular files named after a directory marker', () async {
+    // A file called `test` or `android` is not a test suite or a platform, so
+    // detection must ask for a directory, not merely for existence.
+    write('pubspec.yaml', '''
+name: demo
+dependencies:
+  flutter:
+    sdk: flutter
+''');
+    write('lib/main.dart', 'void main() {}');
+    write('test', 'a file, not a directory\n');
+    write('android', 'a file, not a directory\n');
+
+    await runInit(project.path);
+    final scripts = read('merry.yaml');
+
+    expect(scripts, isNot(contains('test:')));
+    expect(scripts, isNot(contains('flutter build apk')));
+  });
+
   test('skips test scripts when the project has no test directory', () async {
     write('pubspec.yaml', 'name: demo\n');
 
