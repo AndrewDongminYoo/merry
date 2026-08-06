@@ -1,4 +1,4 @@
-import 'dart:io' show Directory, File, FileMode, FileSystemEntity, FileSystemEntityType, stdin, stdout;
+import 'dart:io' show Directory, File, FileMode, FileSystemEntity, FileSystemEntityType, Link, stdin, stdout;
 
 import 'package:args/command_runner.dart';
 import 'package:merry/error.dart' show ErrorCode, MerryError;
@@ -21,6 +21,50 @@ bool _promptYesNo(String question) {
 /// Whether [relative] resolves to an existing file or directory.
 bool _exists(String projectPath, String relative) =>
     FileSystemEntity.typeSync(path.join(projectPath, relative)) != FileSystemEntityType.notFound;
+
+/// How many links [_resolveWriteTarget] follows before calling it a loop. The
+/// value only has to exceed any sane nesting depth; the OS enforces its own
+/// limit once a write is actually attempted.
+const int _maxLinkHops = 32;
+
+/// Returns the path a write to [target] would land on, following symlinks the
+/// way the filesystem does.
+///
+/// [File.resolveSymbolicLinks] cannot answer this: it throws when any component
+/// is missing, which is exactly the case that matters — a dangling link, or a
+/// file yet to be created under a linked directory. This walks to the deepest
+/// existing ancestor, resolves that, and re-attaches the rest.
+Future<String> _resolveWriteTarget(String target) async {
+  var current = path.normalize(target);
+
+  for (var hop = 0; hop < _maxLinkHops; hop++) {
+    // A link is resolved by hand: the entity it names may not exist, and the
+    // value it holds may itself be relative to the link's own directory.
+    if (FileSystemEntity.isLinkSync(current)) {
+      final destination = await Link(current).target();
+      current = path.normalize(path.join(path.dirname(current), destination));
+      continue;
+    }
+
+    // Walk up to something that exists, so the ancestors can be resolved.
+    final segments = <String>[];
+    var ancestor = current;
+    while (!await FileSystemEntity.isDirectory(ancestor) && path.dirname(ancestor) != ancestor) {
+      segments.insert(0, path.basename(ancestor));
+      ancestor = path.dirname(ancestor);
+    }
+
+    final resolved = path.normalize(
+      path.join(await Directory(ancestor).resolveSymbolicLinks(), path.joinAll(segments)),
+    );
+    // A resolved ancestor can expose a link deeper down, so keep going until the
+    // path stops moving.
+    if (resolved == current) return current;
+    current = resolved;
+  }
+
+  throw MerryError(type: ErrorCode.invalidScripts);
+}
 
 /// Whether `dependencies` or `dev_dependencies` declares [package].
 bool _dependsOn(JsonMap content, String package) {
@@ -87,12 +131,6 @@ class InitCommand extends Command<int> {
       throw MerryError(type: ErrorCode.invalidScripts);
     }
 
-    // `scripts: pubspec.yaml` reads as an inline map, so writing the template
-    // there would replace the manifest itself with a script file.
-    if (path.equals(scriptsPath, pubspec.filePath)) {
-      throw MerryError(type: ErrorCode.invalidScripts);
-    }
-
     // A directory (or anything else that is not a plain file) cannot be written
     // to; refuse it here instead of leaking a raw FileSystemException.
     final existingType = FileSystemEntity.typeSync(scriptsPath);
@@ -100,15 +138,15 @@ class InitCommand extends Command<int> {
       throw MerryError(type: ErrorCode.invalidScripts);
     }
 
-    // The check above is lexical, so a symlink pointing out of the project would
-    // still pass it and the write would land on the target. `Pubspec.getScripts`
-    // resolves links before reading; resolve them here too, before writing.
-    if (existingType == FileSystemEntityType.file) {
-      final resolvedProject = await Directory(projectPath).resolveSymbolicLinks();
-      final resolvedScripts = await File(scriptsPath).resolveSymbolicLinks();
-      if (!path.isWithin(resolvedProject, resolvedScripts) || path.equals(resolvedScripts, pubspec.filePath)) {
-        throw MerryError(type: ErrorCode.invalidScripts);
-      }
+    // Every check above is lexical, and a write follows symlinks. Decide where
+    // the write would actually land before doing it: resolving both sides makes
+    // a link out of the project, a link onto the manifest, and a `scripts:
+    // pubspec.yaml` that names it directly all the same rejection.
+    final resolvedProject = await Directory(projectPath).resolveSymbolicLinks();
+    final resolvedScripts = await _resolveWriteTarget(scriptsPath);
+    final resolvedPubspec = await _resolveWriteTarget(pubspec.filePath);
+    if (!path.isWithin(resolvedProject, resolvedScripts) || path.equals(resolvedScripts, resolvedPubspec)) {
+      throw MerryError(type: ErrorCode.invalidScripts);
     }
 
     final scriptsFile = File(scriptsPath);
@@ -143,10 +181,31 @@ class InitCommand extends Command<int> {
   Future<void> _linkPubspec(String pubspecPath, String target) async {
     final file = File(pubspecPath);
     final content = await file.readAsString();
+    final entry = '$scriptsKey: $target\n';
+
+    // A `...` terminator ends the document, so a key appended after it is not
+    // part of the manifest at all. Put the key in front of the terminator, and
+    // of whatever trailing comments sit above it.
+    final lines = content.split('\n');
+    var insertAt = lines.length;
+    for (var i = lines.length - 1; i >= 0; i--) {
+      final line = lines[i].trim();
+      if (line.isEmpty || line.startsWith('#')) continue;
+      if (line == '...') insertAt = i;
+      break;
+    }
+
+    if (insertAt < lines.length) {
+      // `join` supplies the line break, so insert the key without its own.
+      lines.insert(insertAt, entry.trimRight());
+      await file.writeAsString(lines.join('\n'));
+      return;
+    }
+
     // Without this a file that does not end in a newline would get the new key
     // glued onto its last line.
     final separator = content.endsWith('\n') ? '\n' : '\n\n';
-    await file.writeAsString('$separator$scriptsKey: $target\n', mode: FileMode.append);
+    await file.writeAsString('$separator$entry', mode: FileMode.append);
   }
 }
 
@@ -158,9 +217,16 @@ String _buildTemplate(JsonMap content, String projectPath) {
   final tool = isFlutter ? 'flutter' : 'dart';
   final flutterConfig = content['flutter'];
 
+  // A plugin declares `flutter: plugin:` and is never runnable itself, whatever
+  // its lib/ happens to contain — `lib/main.dart` in a plugin is just a library
+  // file with a common name. Its platform directories hold the native
+  // implementation, not an app to build.
+  final isPlugin = flutterConfig is Map && flutterConfig.containsKey('plugin');
+  final isApp = isFlutter && !isPlugin && has('lib/main.dart');
+
   final buffer = StringBuffer('# Generated by `merry init`. Safe to edit.\n');
 
-  if (isFlutter && has('lib/main.dart')) {
+  if (isApp) {
     buffer.write('''
 
 dev:
@@ -238,7 +304,7 @@ l10n:
   }
 
   // Only an app builds artifacts, and only for the platforms it actually has.
-  if (isFlutter && has('lib/main.dart')) {
+  if (isApp) {
     const targets = <String, List<String>>{
       'android': ['apk: flutter build apk --release', 'aab: flutter build appbundle --release'],
       'ios': ['ipa: flutter build ipa --release'],

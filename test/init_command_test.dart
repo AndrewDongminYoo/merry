@@ -191,6 +191,80 @@ dev_dependencies:
     );
   });
 
+  test('refuses to write through a dangling symlink escaping the project', () async {
+    // The link resolves to nothing yet, so the target reads as `notFound` — but
+    // the write would still follow it and create the file outside the project.
+    final outside = File(path.join(project.parent.path, 'merry_init_dangling.yaml'));
+    addTearDown(() => outside.existsSync() ? outside.deleteSync() : null);
+
+    write('pubspec.yaml', 'name: demo\nscripts: link.yaml\n');
+    Link(path.join(project.path, 'link.yaml')).createSync(outside.path);
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+    expect(outside.existsSync(), isFalse);
+  });
+
+  test('refuses to write beneath a directory symlink escaping the project', () async {
+    final outside = Directory(path.join(project.parent.path, 'merry_init_outdir'))..createSync();
+    addTearDown(() => outside.existsSync() ? outside.deleteSync(recursive: true) : null);
+
+    write('pubspec.yaml', 'name: demo\nscripts: linked/scripts.yaml\n');
+    Link(path.join(project.path, 'linked')).createSync(outside.path);
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+    expect(outside.listSync(), isEmpty);
+  });
+
+  test('refuses a scripts symlink resolving onto a symlinked pubspec', () async {
+    // Both paths reach the same manifest; only resolving each side reveals it.
+    write('real_pubspec.yaml', 'name: demo\nscripts: link.yaml\n');
+    Link(path.join(project.path, 'pubspec.yaml')).createSync(path.join(project.path, 'real_pubspec.yaml'));
+    Link(path.join(project.path, 'link.yaml')).createSync(path.join(project.path, 'real_pubspec.yaml'));
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+    expect(read('real_pubspec.yaml'), 'name: demo\nscripts: link.yaml\n');
+  });
+
+  test('inserts the scripts key before a YAML document terminator', () async {
+    write('pubspec.yaml', 'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\n...\n');
+
+    expect(await runInit(project.path), 0);
+
+    expect(read('pubspec.yaml'), 'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\nscripts: merry.yaml\n...\n');
+  });
+
+  test('a plugin with a lib/main.dart is still not treated as an app', () async {
+    write('pubspec.yaml', '''
+name: demo
+dependencies:
+  flutter:
+    sdk: flutter
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.example
+''');
+    write('lib/main.dart', 'const answer = 42;');
+    write('example/pubspec.yaml', 'name: demo_example\n');
+    Directory(path.join(project.path, 'android')).createSync();
+
+    await runInit(project.path);
+    final scripts = read('merry.yaml');
+
+    expect(scripts, contains('(workdir): example'));
+    expect(scripts, isNot(contains('flutter build')));
+  });
+
   test('refuses to write through a symlink escaping the project', () async {
     final outside = File(path.join(project.parent.path, 'merry_init_outside.yaml'))..writeAsStringSync('keep me\n');
     addTearDown(() => outside.existsSync() ? outside.deleteSync() : null);
