@@ -15,6 +15,7 @@ Future<int> runMerry(List<String> arguments) async {
 
   runner
     ..addCommand(RunCommmand())
+    ..addCommand(InitCommand())
     ..addCommand(ListCommand())
     ..addCommand(UpgradeCommand())
     ..addCommand(SourceCommand())

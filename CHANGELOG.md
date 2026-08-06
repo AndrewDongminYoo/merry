@@ -1,3 +1,9 @@
+## [Unreleased]
+
+### Added
+
+- `merry init` writes a starter script file for the current project and links it from `pubspec.yaml`. The generated scripts follow what the project declares: build targets come from the platform directories that exist, `generate` from a `build_runner` dependency, and a Flutter plugin's `dev` script runs its `example/` app. A project configured with inline scripts is left untouched, and an existing script file is replaced only after confirmation
+
 ## [2.1.4] - 2026-07-30
 
 ### Fixed
