@@ -298,6 +298,28 @@ dependencies:
     );
   });
 
+  test('leaves an indented terminator-looking line inside a block scalar', () async {
+    // `...` only ends a document at column zero; indented it is scalar content,
+    // and inserting the key there would corrupt the scalar.
+    write('pubspec.yaml', 'name: demo\ndescription: |\n  text\n  ...\n');
+
+    expect(await runInit(project.path), 0);
+
+    expect(read('pubspec.yaml'), 'name: demo\ndescription: |\n  text\n  ...\n\nscripts: merry.yaml\n');
+  });
+
+  test('rejects a dangling directory symlink among the target ancestors', () async {
+    // `typeSync` follows links, so the dangling link reads as `notFound` even
+    // though the name is taken and `create(recursive: true)` would throw.
+    write('pubspec.yaml', 'name: demo\nscripts: linked/scripts.yaml\n');
+    Link(path.join(project.path, 'linked')).createSync(path.join(project.parent.path, 'merry_init_nonexistent'));
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+  });
+
   test('treats a line merely starting with dots as content', () async {
     // The last line starts with `...` but is a block scalar's content, not a
     // terminator, so the key still belongs at the end of the file.
