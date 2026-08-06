@@ -26,14 +26,16 @@ bool _hasFile(String projectPath, String relative) =>
 bool _hasDirectory(String projectPath, String relative) =>
     FileSystemEntity.typeSync(path.join(projectPath, relative)) == FileSystemEntityType.directory;
 
-/// Whether [line] — already trimmed — is a YAML document terminator.
+/// Whether [line] — a raw line, indentation intact — is a YAML document
+/// terminator.
 ///
-/// The token ends the document whether it stands alone or carries a trailing
-/// comment, so `...` and `... # end` have to be treated alike. `...abc` is
-/// ordinary content and must not match.
+/// The token only ends the document at column zero; indented, it is block
+/// scalar content. It ends the document whether it stands alone or carries a
+/// trailing comment, so `...` and `... # end` are alike, while `...abc` and a
+/// leading space are ordinary content.
 bool _isDocumentTerminator(String line) {
   if (!line.startsWith('...')) return false;
-  final rest = line.substring(3);
+  final rest = line.substring(3).trimRight();
   return rest.isEmpty || rest.startsWith('#') || rest.startsWith(' ') || rest.startsWith('\t');
 }
 
@@ -175,14 +177,19 @@ class InitCommand extends Command<int> {
 
     // The directories leading to the target have to be creatable. An existing
     // non-directory in the way — `scripts: tool/scripts.yaml` where `tool` is a
-    // file — would otherwise surface as a raw FileSystemException from the
-    // `create(recursive: true)` below.
+    // file, or a symlink to a directory that does not exist — would otherwise
+    // surface as a raw FileSystemException from the `create(recursive: true)`
+    // below. `typeSync` follows links, so a dangling one reads as `notFound`
+    // while the name is really taken; ask whether it is a link separately.
     for (
       var ancestor = path.dirname(scriptsPath);
       path.isWithin(projectPath, ancestor);
       ancestor = path.dirname(ancestor)
     ) {
       final type = FileSystemEntity.typeSync(ancestor);
+      if (type == FileSystemEntityType.notFound && FileSystemEntity.isLinkSync(ancestor)) {
+        throw MerryError(type: ErrorCode.invalidScripts);
+      }
       if (type != FileSystemEntityType.notFound && type != FileSystemEntityType.directory) {
         throw MerryError(type: ErrorCode.invalidScripts);
       }
@@ -246,9 +253,10 @@ class InitCommand extends Command<int> {
     final lines = content.split('\n');
     var insertAt = lines.length;
     for (var i = lines.length - 1; i >= 0; i--) {
-      final line = lines[i].trim();
-      if (line.isEmpty || line.startsWith('#')) continue;
-      if (_isDocumentTerminator(line)) insertAt = i;
+      if (lines[i].trim().isEmpty || lines[i].trimLeft().startsWith('#')) continue;
+      // The raw line, not a trimmed one: a terminator sits at column zero, and
+      // an indented `...` is block-scalar content that must stay untouched.
+      if (_isDocumentTerminator(lines[i])) insertAt = i;
       break;
     }
 
