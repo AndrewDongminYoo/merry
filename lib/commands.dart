@@ -1,3 +1,4 @@
+export 'src/commands/init.dart';
 export 'src/commands/ls.dart';
 export 'src/commands/run.dart';
 export 'src/commands/source.dart';

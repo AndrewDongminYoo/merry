@@ -69,6 +69,16 @@ merry [script]
 
 ## Usage
 
+To set up a project, run `merry init` in its root.
+It writes a `merry.yaml` with a starter set of scripts and links it from `pubspec.yaml`.
+
+```bash
+merry init
+```
+
+The generated scripts follow what the project actually declares — no `flutter build apk` without an `android/` directory, no `generate` without `build_runner`.
+A project that already keeps its scripts inline in `pubspec.yaml` is left alone, and an existing script file is only replaced after you confirm.
+
 When called, merry will look for a `pubspec.yaml` file in the current directory, and will throw an error if it doesn't exist. The scripts can be declared within the `scripts` node of the `pubspec.yaml` file.
 
 ```yaml
@@ -295,6 +305,18 @@ merry ls --output=json
 merry ls --output=tree  # human-readable tree (default)
 merry ls -o json        # machine-readable JSON
 ```
+
+**Create a starter config**
+
+Use this command to set up merry in a project that does not have it yet.
+It detects whether the project is a Flutter app, a Flutter plugin, or a plain Dart package, and generates only the scripts that project can actually run — the build targets come from the platform directories that exist, and `generate` is written only when `build_runner` is a dependency.
+
+```bash
+merry init
+```
+
+If `pubspec.yaml` already points at a script file, that file is initialized in place and `pubspec.yaml` is left untouched.
+If it already defines scripts inline, nothing is changed at all.
 
 **List available scripts**
 
