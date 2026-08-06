@@ -242,6 +242,40 @@ dev_dependencies:
     expect(read('pubspec.yaml'), 'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\nscripts: merry.yaml\n...\n');
   });
 
+  test('refuses a script file hard-linked to the manifest', () async {
+    // One inode, two names: no amount of path resolution tells them apart, so
+    // writing through either would truncate the manifest.
+    write('pubspec.yaml', 'name: demo\nscripts: hard.yaml\n');
+    Process.runSync('ln', [path.join(project.path, 'pubspec.yaml'), path.join(project.path, 'hard.yaml')]);
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+    expect(read('pubspec.yaml'), 'name: demo\nscripts: hard.yaml\n');
+  });
+
+  test('inserts the scripts key before a commented document terminator', () async {
+    write('pubspec.yaml', 'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\n... # end\n');
+
+    expect(await runInit(project.path), 0);
+
+    expect(
+      read('pubspec.yaml'),
+      'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\nscripts: merry.yaml\n... # end\n',
+    );
+  });
+
+  test('treats a line merely starting with dots as content', () async {
+    // The last line starts with `...` but is a block scalar's content, not a
+    // terminator, so the key still belongs at the end of the file.
+    write('pubspec.yaml', 'name: demo\ndescription: |\n  ...trailing off\n');
+
+    expect(await runInit(project.path), 0);
+
+    expect(read('pubspec.yaml'), 'name: demo\ndescription: |\n  ...trailing off\n\nscripts: merry.yaml\n');
+  });
+
   test('a plugin with a lib/main.dart is still not treated as an app', () async {
     write('pubspec.yaml', '''
 name: demo

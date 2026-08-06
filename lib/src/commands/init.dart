@@ -22,6 +22,37 @@ bool _promptYesNo(String question) {
 bool _exists(String projectPath, String relative) =>
     FileSystemEntity.typeSync(path.join(projectPath, relative)) != FileSystemEntityType.notFound;
 
+/// Whether [line] — already trimmed — is a YAML document terminator.
+///
+/// The token ends the document whether it stands alone or carries a trailing
+/// comment, so `...` and `... # end` have to be treated alike. `...abc` is
+/// ordinary content and must not match.
+bool _isDocumentTerminator(String line) {
+  if (!line.startsWith('...')) return false;
+  final rest = line.substring(3);
+  return rest.isEmpty || rest.startsWith('#') || rest.startsWith(' ') || rest.startsWith('\t');
+}
+
+/// Whether [scriptsPath] holds the same bytes as the manifest at [pubspecPath].
+///
+/// A hard link gives one inode two names that no amount of path resolution can
+/// tell apart, and `dart:io` exposes no inode to compare. Equal content is the
+/// available proxy: it over-rejects a script file that coincidentally duplicates
+/// the manifest byte for byte, which is not a thing anyone writes on purpose,
+/// and under-rejecting here would destroy the manifest.
+Future<bool> _hasManifestContent(String scriptsPath, String pubspecPath) async {
+  final scripts = File(scriptsPath);
+  final pubspec = File(pubspecPath);
+  if (await scripts.length() != await pubspec.length()) return false;
+
+  final scriptsBytes = await scripts.readAsBytes();
+  final pubspecBytes = await pubspec.readAsBytes();
+  for (var i = 0; i < scriptsBytes.length; i++) {
+    if (scriptsBytes[i] != pubspecBytes[i]) return false;
+  }
+  return true;
+}
+
 /// How many links [_resolveWriteTarget] follows before calling it a loop. The
 /// value only has to exceed any sane nesting depth; the OS enforces its own
 /// limit once a write is actually attempted.
@@ -149,6 +180,13 @@ class InitCommand extends Command<int> {
       throw MerryError(type: ErrorCode.invalidScripts);
     }
 
+    // Two names for one inode — a hard link — stay distinct however thoroughly
+    // they are resolved, and writing through either truncates the manifest they
+    // share. `dart:io` exposes no inode, so identity is inferred from content.
+    if (existingType == FileSystemEntityType.file && await _hasManifestContent(scriptsPath, pubspec.filePath)) {
+      throw MerryError(type: ErrorCode.invalidScripts);
+    }
+
     final scriptsFile = File(scriptsPath);
     final linked = content.containsKey(scriptsKey);
 
@@ -191,7 +229,7 @@ class InitCommand extends Command<int> {
     for (var i = lines.length - 1; i >= 0; i--) {
       final line = lines[i].trim();
       if (line.isEmpty || line.startsWith('#')) continue;
-      if (line == '...') insertAt = i;
+      if (_isDocumentTerminator(line)) insertAt = i;
       break;
     }
 
