@@ -169,6 +169,21 @@ class InitCommand extends Command<int> {
       throw MerryError(type: ErrorCode.invalidScripts);
     }
 
+    // The directories leading to the target have to be creatable. An existing
+    // non-directory in the way — `scripts: tool/scripts.yaml` where `tool` is a
+    // file — would otherwise surface as a raw FileSystemException from the
+    // `create(recursive: true)` below.
+    for (
+      var ancestor = path.dirname(scriptsPath);
+      path.isWithin(projectPath, ancestor);
+      ancestor = path.dirname(ancestor)
+    ) {
+      final type = FileSystemEntity.typeSync(ancestor);
+      if (type != FileSystemEntityType.notFound && type != FileSystemEntityType.directory) {
+        throw MerryError(type: ErrorCode.invalidScripts);
+      }
+    }
+
     // Every check above is lexical, and a write follows symlinks. Decide where
     // the write would actually land before doing it: resolving both sides makes
     // a link out of the project, a link onto the manifest, and a `scripts:

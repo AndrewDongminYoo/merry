@@ -242,6 +242,18 @@ dev_dependencies:
     expect(read('pubspec.yaml'), 'name: demo\nenvironment:\n  sdk: ">=3.10.0 <4.0.0"\nscripts: merry.yaml\n...\n');
   });
 
+  test('rejects a target whose ancestor is an existing file', () async {
+    // `tool` is a file, so the directory the target needs cannot be created.
+    write('pubspec.yaml', 'name: demo\nscripts: tool/scripts.yaml\n');
+    write('tool', 'not a directory\n');
+
+    await expectLater(
+      runInit(project.path, confirm: true),
+      throwsA(isA<MerryError>().having((e) => e.type, 'type', ErrorCode.invalidScripts)),
+    );
+    expect(read('tool'), 'not a directory\n');
+  });
+
   test('refuses a script file hard-linked to the manifest', () async {
     // One inode, two names: no amount of path resolution tells them apart, so
     // writing through either would truncate the manifest.
