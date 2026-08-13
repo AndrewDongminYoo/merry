@@ -177,6 +177,7 @@ class ScriptsRegistry {
     String script, {
     required List<String> ancestors,
     List<String> extra = const [],
+    bool stopOnFirstFailure = false,
   }) async {
     final canonical = _resolveAlias(script);
 
@@ -204,7 +205,12 @@ class ScriptsRegistry {
       if (preExitCode != 0) return preExitCode;
     }
 
-    final exitCode = await _runScript(canonical, extra: extra, ancestors: path);
+    final exitCode = await _runScript(
+      canonical,
+      extra: extra,
+      stopOnFirstFailure: stopOnFirstFailure,
+      ancestors: path,
+    );
     if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
@@ -232,6 +238,7 @@ class ScriptsRegistry {
           ref.script,
           extra: [...ref.extra, ...extra],
           ancestors: ancestors,
+          stopOnFirstFailure: stopOnFirstFailure,
         );
       } else {
         // replace all \$ with $, they are not valid references

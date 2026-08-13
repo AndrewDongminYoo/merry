@@ -886,6 +886,26 @@ scripts: merry.yaml
       expect(exitCode, equals(130));
       expect(ran, equals(["cancelled step"]));
     });
+
+    test("runScript propagates pre-hook fail-fast through references", () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "predeploy": r"$check",
+          "check": ["exit 2", "echo cleanup"],
+          "deploy": "echo main",
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("exit 2") ? 2 : 0;
+        },
+      );
+
+      final exitCode = await registry.runScript("deploy");
+
+      expect(exitCode, equals(2));
+      expect(ran, equals(["exit 2"]));
+    });
   });
 
   group('ls --output=json shape', () {
