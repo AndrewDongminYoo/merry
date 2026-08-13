@@ -1,3 +1,14 @@
+## [2.3.0] - 2026-08-13
+
+### Fixed
+
+- Propagate fail-fast execution through referenced scripts, so a failed command in a referenced pre-hook stops its remaining commands instead of continuing
+- Generate `build_runner` scripts without the removed `--delete-conflicting-outputs` option in `merry init`, and update the project scripts and examples to match
+
+### Internal
+
+- Upgrade Dart dependencies and Checkov, adapt `MerryError` to Equatable 2.1, and regenerate Mockito mocks with the updated toolchain
+
 ## [2.2.0] - 2026-08-06
 
 ### Added
