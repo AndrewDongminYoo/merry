@@ -10,10 +10,9 @@ void main() {
   test('every workflow checkout is pinned and drops its credential', () {
     // Both extensions, since Actions runs a `.yaml` workflow just as happily
     // and a sweep that skipped one would be the gap it exists to close.
-    final workflows = Directory('.github/workflows')
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.endsWith('.yml') || file.path.endsWith('.yaml'));
+    final workflows = Directory(
+      '.github/workflows',
+    ).listSync().whereType<File>().where((file) => file.path.endsWith('.yml') || file.path.endsWith('.yaml'));
 
     expect(workflows, isNotEmpty, reason: 'no workflows found to check');
 

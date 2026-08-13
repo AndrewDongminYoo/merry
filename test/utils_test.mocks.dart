@@ -27,45 +27,35 @@ import 'package:mockito/src/dummies.dart' as _i3;
 // ignore_for_file: invalid_use_of_internal_member
 
 class _FakeFile_0 extends _i1.SmartFake implements _i2.File {
-  _FakeFile_0(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeFile_0(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 class _FakeUri_1 extends _i1.SmartFake implements Uri {
-  _FakeUri_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeUri_1(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 class _FakeDirectory_2 extends _i1.SmartFake implements _i2.Directory {
-  _FakeDirectory_2(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeDirectory_2(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
-class _FakeFileSystemEntity_3 extends _i1.SmartFake
-    implements _i2.FileSystemEntity {
-  _FakeFileSystemEntity_3(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+class _FakeFileSystemEntity_3 extends _i1.SmartFake implements _i2.FileSystemEntity {
+  _FakeFileSystemEntity_3(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 class _FakeDateTime_4 extends _i1.SmartFake implements DateTime {
-  _FakeDateTime_4(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeDateTime_4(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
-class _FakeRandomAccessFile_5 extends _i1.SmartFake
-    implements _i2.RandomAccessFile {
-  _FakeRandomAccessFile_5(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+class _FakeRandomAccessFile_5 extends _i1.SmartFake implements _i2.RandomAccessFile {
+  _FakeRandomAccessFile_5(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 class _FakeIOSink_6 extends _i1.SmartFake implements _i2.IOSink {
-  _FakeIOSink_6(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeIOSink_6(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 class _FakeFileStat_7 extends _i1.SmartFake implements _i2.FileStat {
-  _FakeFileStat_7(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
+  _FakeFileStat_7(Object parent, Invocation parentInvocation) : super(parent, parentInvocation);
 }
 
 /// A class which mocks [File].
@@ -101,9 +91,7 @@ class MockFile extends _i1.Mock implements _i2.File {
           as Uri);
 
   @override
-  bool get isAbsolute =>
-      (super.noSuchMethod(Invocation.getter(#isAbsolute), returnValue: false)
-          as bool);
+  bool get isAbsolute => (super.noSuchMethod(Invocation.getter(#isAbsolute), returnValue: false) as bool);
 
   @override
   _i2.Directory get parent =>
@@ -136,14 +124,13 @@ class MockFile extends _i1.Mock implements _i2.File {
           as _i4.Future<_i2.File>);
 
   @override
-  void createSync({bool? recursive = false, bool? exclusive = false}) =>
-      super.noSuchMethod(
-        Invocation.method(#createSync, [], {
-          #recursive: recursive,
-          #exclusive: exclusive,
-        }),
-        returnValueForMissingStub: null,
-      );
+  void createSync({bool? recursive = false, bool? exclusive = false}) => super.noSuchMethod(
+    Invocation.method(#createSync, [], {
+      #recursive: recursive,
+      #exclusive: exclusive,
+    }),
+    returnValueForMissingStub: null,
+  );
 
   @override
   _i4.Future<_i2.File> rename(String? newPath) =>
@@ -215,9 +202,7 @@ class MockFile extends _i1.Mock implements _i2.File {
           as _i4.Future<int>);
 
   @override
-  int lengthSync() =>
-      (super.noSuchMethod(Invocation.method(#lengthSync, []), returnValue: 0)
-          as int);
+  int lengthSync() => (super.noSuchMethod(Invocation.method(#lengthSync, []), returnValue: 0) as int);
 
   @override
   _i4.Future<DateTime> lastAccessed() =>
@@ -590,9 +575,7 @@ class MockDirectory extends _i1.Mock implements _i2.Directory {
           as _i2.Directory);
 
   @override
-  bool get isAbsolute =>
-      (super.noSuchMethod(Invocation.getter(#isAbsolute), returnValue: false)
-          as bool);
+  bool get isAbsolute => (super.noSuchMethod(Invocation.getter(#isAbsolute), returnValue: false) as bool);
 
   @override
   _i2.Directory get parent =>
