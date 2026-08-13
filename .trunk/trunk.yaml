@@ -26,7 +26,7 @@ lint:
     - shellcheck@0.11.0
     - shfmt@3.13.1
     - actionlint@1.7.12
-    - checkov@3.3.8
+    - checkov@3.3.10
     - git-diff-check
     - markdownlint@0.49.1
     - osv-scanner@2.3.5
