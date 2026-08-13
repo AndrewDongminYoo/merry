@@ -166,7 +166,11 @@ class ScriptsRegistry {
   }
 
   /// Runs a script from the scripts map if it exists.
-  Future<int> runScript(String script, {List<String> extra = const []}) async {
+  Future<int> runScript(
+    String script, {
+    List<String> extra = const [],
+    bool stopOnFirstFailure = false,
+  }) async {
     final canonical = _resolveAlias(script);
 
     final preScript = lookup('pre$canonical');
@@ -181,7 +185,11 @@ class ScriptsRegistry {
       if (preExitCode != 0) return preExitCode;
     }
 
-    final exitCode = await _runScript(canonical, extra: extra);
+    final exitCode = await _runScript(
+      canonical,
+      extra: extra,
+      stopOnFirstFailure: stopOnFirstFailure,
+    );
     if (exitCode == _sigintExitCode) return exitCode;
 
     final postScript = lookup('post$canonical');
@@ -207,6 +215,7 @@ class ScriptsRegistry {
         exitCode = await runScript(
           ref.script,
           extra: [...ref.extra, ...extra],
+          stopOnFirstFailure: stopOnFirstFailure,
         );
       } else {
         // replace all \$ with $, they are not valid references
