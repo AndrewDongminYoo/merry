@@ -1,9 +1,9 @@
-import 'package:equatable/equatable.dart' show EquatableMixin;
+import 'package:equatable/equatable.dart' show Equatable;
 import 'package:merry/src/error/error_code.dart' show ErrorCode;
 
 /// A custom error type used to catch custom errors
 /// with the type [ErrorCode].
-class MerryError extends Error with EquatableMixin {
+class MerryError extends Error with Equatable {
   /// Type of error.
   final ErrorCode type;
 
