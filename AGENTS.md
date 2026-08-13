@@ -9,7 +9,7 @@
 - `dart pub get`: install Dart dependencies.
 - `dart analyze`: run the repository lint set from `analysis_options.yaml`.
 - `dart test`: run the unit test suite in `test/`.
-- `dart run build_runner build --delete-conflicting-outputs`: regenerate Mockito mocks after changing `@GenerateMocks`.
+- `dart run build_runner build`: regenerate Mockito mocks after changing `@GenerateMocks`.
 - `dart run bin/merry.dart ls -d`: inspect available scripts and descriptions from the local checkout.
 - `dart run bin/merry.dart test`: run the repo-defined `test` script from `merry.yaml`.
 - `cd native && cargo build --release`: build the Rust library manually.

@@ -13,14 +13,14 @@ Merry helps you define shortcut scripts, and save you from having to type very l
 Instead of running this every time,
 
 ```bash
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 ```
 
 Add this to `pubspec.yaml`,
 
 ```yaml
 scripts:
-  build: dart run build_runner build --delete-conflicting-outputs
+  build: dart run build_runner build
 ```
 
 and run

@@ -356,7 +356,7 @@ test:
 
 generate:
   (description): Run code generation.
-  (scripts): dart run build_runner build --delete-conflicting-outputs
+  (scripts): dart run build_runner build
 ''');
   }
 

@@ -15,7 +15,7 @@ void main() {
     expect(
       packageVersion,
       pubspec['version'],
-      reason: 'run `dart run build_runner build --delete-conflicting-outputs`',
+      reason: 'run `dart run build_runner build`',
     );
   });
 }

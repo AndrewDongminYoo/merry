@@ -19,7 +19,7 @@ dart run test test/utils_test.dart
 dart analyze
 
 # Regenerate mocks (after changing @GenerateMocks annotations)
-dart run build_runner build --delete-conflicting-outputs
+dart run build_runner build
 ```
 
 ### Building native blobs (Rust FFI)
