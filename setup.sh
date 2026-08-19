@@ -51,11 +51,6 @@ aarch64 | arm64) DART_ARCH="arm64" ;;
 *) die "Unsupported Dart host architecture: $(uname -m)" ;;
 esac
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-readonly SCRIPT_DIR
-[[ -f ${SCRIPT_DIR}/pubspec.yaml ]] || die "pubspec.yaml not found at ${SCRIPT_DIR}."
-cd "${SCRIPT_DIR}"
-
 TMP_DIR="$(mktemp -d)"
 readonly TMP_DIR
 trap cleanup EXIT
