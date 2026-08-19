@@ -1,5 +1,14 @@
 # Merry
 
+![Abstract command orchestration pipeline](.github/assets/readme-hero.png)
+
+[![Verify](https://github.com/AndrewDongminYoo/merry/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/AndrewDongminYoo/merry/actions/workflows/verify.yml)
+[![pub.dev version](https://img.shields.io/pub/v/merry)](https://pub.dev/packages/merry)
+[![pub points](https://img.shields.io/pub/points/merry)](https://pub.dev/packages/merry/score)
+[![MIT license](https://img.shields.io/github/license/AndrewDongminYoo/merry)](LICENSE)
+[![Dart CLI](https://img.shields.io/badge/Dart-CLI-0175C2?logo=dart&logoColor=white)](#installation)
+[![Rust native library](https://img.shields.io/badge/native-Rust-000000?logo=rust&logoColor=white)](native/)
+
 Merry is a script manager for Dart.
 
 > **Merry** is a maintained fork of [derry](https://pub.dev/packages/derry) by [Frenco](https://github.com/frencojobs).
