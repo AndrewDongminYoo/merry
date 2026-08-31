@@ -1,0 +1,15 @@
+test:
+  (description): run the suite
+  (scripts): echo test
+
+pretest: echo before-test
+posttest: echo after-test
+
+# "pre" prefix without a matching `sent` script, so this is a real script.
+present: echo not-a-hook
+
+build:
+  debug: echo build-debug
+  release:
+    - $present
+    - echo build-release
