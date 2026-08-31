@@ -187,19 +187,33 @@ void main() {
     });
   });
 
-  test('toJsonMap rejects cyclic YAML aliases', () {
-    final yaml = loadYaml('scripts: &scripts\n  loop: *scripts\n') as Map;
-
-    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+  test('self-referential YAML is rejected while parsing', () {
+    // package:yaml 3.1.4 turned a self-referential collection from a
+    // StackOverflow into a FormatException, so `merry ls` no longer crashes on
+    // a config like this one. The two tests below therefore build their cycles
+    // directly, since such a document no longer survives `loadYaml`.
+    expect(
+      () => loadYaml('scripts: &scripts\n  loop: *scripts\n'),
+      throwsA(isA<FormatException>()),
+    );
   });
 
-  test('toJsonMap rejects a cyclic anchor reused as a mapping key', () {
-    // `? *foo` makes the mapping its own key; hashing that cyclic key
-    // deep-recurses in package:yaml and would overflow the stack (crashing
-    // e.g. `merry ls`) before any cycle check could run.
-    final yaml = loadYaml('foo: &foo\n  ? *foo\n  : echo hi\n') as Map;
+  test('toJsonMap rejects a cyclic map', () {
+    final cyclic = <dynamic, dynamic>{};
+    cyclic['loop'] = cyclic;
 
-    expect(yaml.toJsonMap, throwsA(isA<FormatException>()));
+    expect(cyclic.toJsonMap, throwsA(isA<FormatException>()));
+  });
+
+  test('toJsonMap rejects a collection used as a mapping key', () {
+    // a YAML `? *anchor` aliasing its own mapping arrives here as a map-valued
+    // key; hashing a cyclic key deep-recurses in package:yaml and would
+    // overflow the stack before any cycle check could run
+    final collectionKey = <dynamic, dynamic>{
+      <dynamic, dynamic>{'foo': 'bar'}: 'echo hi',
+    };
+
+    expect(collectionKey.toJsonMap, throwsA(isA<FormatException>()));
   });
 
   // grouping a bunch of tests didn't work with IOOverrides
