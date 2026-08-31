@@ -318,6 +318,7 @@ A `pre`/`post` hook does not get its own task, because it already runs together 
 
 ```bash
 dart pub add --dev merry
+mkdir -p .vscode
 dart run merry:merry ls --output=tasks > .vscode/tasks.json
 ```
 
