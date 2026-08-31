@@ -134,13 +134,16 @@ class ListCommand extends Command<int> {
       // be misleading as separate entries in the task list
       if (_hookTargetOf(name, nameSet) != null) continue;
 
-      // a process task passes the script name as one argument, which keeps the
-      // space in a nested name such as `build debug` out of shell quoting
+      // `merry <name>` only reaches a script when the name is not one of
+      // merry's own subcommands, so a script called `ls` or `upgrade` would
+      // run the subcommand instead; the explicit `run` avoids that entirely.
+      // A process task also passes the name as one argument, which keeps the
+      // space in a nested name such as `build debug` out of shell quoting.
       final task = <String, dynamic>{
         'label': 'merry: $name',
         'type': 'process',
         'command': 'dart',
-        'args': ['run', 'merry:merry', name],
+        'args': ['run', 'merry:merry', 'run', name],
         // without an explicit matcher VS Code asks how to scan the output on
         // every single run
         'problemMatcher': <String>[],

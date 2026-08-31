@@ -27,6 +27,7 @@ void main() {
     expect(labels, [
       'merry: build debug',
       'merry: build release',
+      'merry: ls',
       'merry: present',
       'merry: test',
     ]);
@@ -42,11 +43,23 @@ void main() {
       'label': 'merry: build debug',
       'type': 'process',
       'command': 'dart',
-      'args': ['run', 'merry:merry', 'build debug'],
+      'args': ['run', 'merry:merry', 'run', 'build debug'],
       'problemMatcher': <String>[],
     });
 
     // `(description)` shows up under the label in the VS Code task picker
     expect(tasks.firstWhere((task) => task['label'] == 'merry: test')['detail'], 'run the suite');
+  });
+
+  test('a script named after a merry subcommand still runs the script', () async {
+    final output = await runLs('tasks');
+    final tasks = (output['tasks'] as List).cast<Map<String, dynamic>>();
+
+    // `merry ls` would list the scripts instead of running the one named `ls`,
+    // because a name only falls through to `run` when no subcommand claims it
+    expect(
+      tasks.firstWhere((task) => task['label'] == 'merry: ls')['args'],
+      ['run', 'merry:merry', 'run', 'ls'],
+    );
   });
 }

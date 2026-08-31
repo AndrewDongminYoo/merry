@@ -8,6 +8,9 @@ posttest: echo after-test
 # "pre" prefix without a matching `sent` script, so this is a real script.
 present: echo not-a-hook
 
+# shares its name with merry's own `ls` subcommand
+ls: echo shadowing-a-subcommand
+
 build:
   debug: echo build-debug
   release:
