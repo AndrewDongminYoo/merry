@@ -1,3 +1,11 @@
+## [Unreleased]
+
+### Added
+
+- `merry ls --output=tasks` generates a VS Code `tasks.json` file.
+  Each script becomes a task that runs it through the local `merry:merry` executable,
+  while `pre`/`post` hooks are left out because they run together with their own script.
+
 ## [2.3.0] - 2026-08-13
 
 ### Fixed

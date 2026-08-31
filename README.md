@@ -52,7 +52,7 @@ The script definition format stays compatible with `derry`, while ongoing develo
 - platform-specific keys such as `(linux)`, `(macos)`, and `(windows)`
 - command aliases via `(aliases)`
 - variable substitution with `${VAR}`
-- JSON output for `merry ls` via `--output=json`
+- JSON and VS Code task output for `merry ls`
 
 ## Acknowledgements
 
@@ -310,9 +310,22 @@ merry ls --output=json
 }
 ```
 
+**VS Code task output**
+
+Use `--output=tasks` to generate a VS Code `.vscode/tasks.json` file, so that every script becomes an entry in the Run Task quick pick.
+Each task runs one script through the local `merry:merry` executable, so add `merry` as a dev dependency first.
+A `pre`/`post` hook does not get its own task, because it already runs together with the script it belongs to.
+
+```bash
+dart pub add --dev merry
+mkdir -p .vscode
+dart run merry:merry ls --output=tasks > .vscode/tasks.json
+```
+
 ```bash
 merry ls --output=tree  # human-readable tree (default)
 merry ls -o json        # machine-readable JSON
+merry ls -o tasks       # VS Code tasks.json
 ```
 
 **Create a starter config**

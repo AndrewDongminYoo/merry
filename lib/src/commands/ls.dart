@@ -36,10 +36,11 @@ class ListCommand extends Command<int> {
         'output',
         abbr: 'o',
         defaultsTo: 'tree',
-        allowed: ['tree', 'json'],
+        allowed: ['tree', 'json', 'tasks'],
         allowedHelp: {
           'tree': 'human-readable tree (default)',
           'json': 'machine-readable JSON for tooling integration',
+          'tasks': 'VS Code tasks.json configuration',
         },
         help: 'output format',
       );
@@ -71,6 +72,11 @@ class ListCommand extends Command<int> {
       return 0;
     }
 
+    if (outputFormat == 'tasks') {
+      _printTasks(paths, definitions);
+      return 0;
+    }
+
     _printTree(info, paths, definitions, showDescriptions);
     return 0;
   }
@@ -97,19 +103,60 @@ class ListCommand extends Command<int> {
       if (hooks.isNotEmpty) entry['hooks'] = hooks;
 
       // if this script is itself a pre/post hook for another script
-      if (name.startsWith('pre') && name.length > 3) {
-        final base = name.substring(3);
-        if (nameSet.contains(base)) entry['hook_for'] = base;
-      } else if (name.startsWith('post') && name.length > 4) {
-        final base = name.substring(4);
-        if (nameSet.contains(base)) entry['hook_for'] = base;
-      }
+      final hookTarget = _hookTargetOf(name, nameSet);
+      if (hookTarget != null) entry['hook_for'] = hookTarget;
 
       scripts.add(entry);
     }
 
     const encoder = JsonEncoder.withIndent('  ');
     stdout.writeln(encoder.convert({'name': info.name, 'version': info.version, 'scripts': scripts}));
+  }
+
+  /// Returns the script that [name] is an automatic `pre`/`post` hook for,
+  /// or `null` when [name] is a script in its own right.
+  String? _hookTargetOf(String name, Set<String> names) {
+    for (final prefix in const ['pre', 'post']) {
+      if (!name.startsWith(prefix) || name.length <= prefix.length) continue;
+      final target = name.substring(prefix.length);
+      if (names.contains(target)) return target;
+    }
+    return null;
+  }
+
+  void _printTasks(List<String> paths, List<Definition> definitions) {
+    final nameSet = paths.toSet();
+    final tasks = <Map<String, dynamic>>[];
+
+    for (var i = 0; i < paths.length; i++) {
+      final name = paths[i];
+      // hooks run together with the script they belong to, so they would only
+      // be misleading as separate entries in the task list
+      if (_hookTargetOf(name, nameSet) != null) continue;
+
+      // `merry <name>` only reaches a script when the name is not one of
+      // merry's own subcommands, so a script called `ls` or `upgrade` would
+      // run the subcommand instead; the explicit `run` avoids that entirely.
+      // A process task also passes the name as one argument, which keeps the
+      // space in a nested name such as `build debug` out of shell quoting.
+      final task = <String, dynamic>{
+        'label': 'merry: $name',
+        'type': 'process',
+        'command': 'dart',
+        'args': ['run', 'merry:merry', 'run', name],
+        // without an explicit matcher VS Code asks how to scan the output on
+        // every single run
+        'problemMatcher': <String>[],
+      };
+
+      final description = definitions[i].description;
+      if (description != null) task['detail'] = description;
+
+      tasks.add(task);
+    }
+
+    const encoder = JsonEncoder.withIndent('  ');
+    stdout.writeln(encoder.convert({'version': '2.0.0', 'tasks': tasks}));
   }
 
   void _printTree(
