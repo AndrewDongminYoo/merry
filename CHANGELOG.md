@@ -1,10 +1,14 @@
-## [Unreleased]
+## [2.4.0] - 2026-08-31
 
 ### Added
 
 - `merry ls --output=tasks` generates a VS Code `tasks.json` file.
   Each script becomes a task that runs it through the local `merry:merry` executable,
   while `pre`/`post` hooks are left out because they run together with their own script.
+
+### Internal
+
+- Raise the `yaml` constraint to `^3.1.4`, which reports a self-referential collection as a parse error instead of overflowing the stack on it
 
 ## [2.3.0] - 2026-08-13
 

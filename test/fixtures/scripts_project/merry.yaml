@@ -16,3 +16,15 @@ build:
   release:
     - $present
     - echo build-release
+
+# runs from a subdirectory
+native:
+  (workdir): native
+  (scripts): echo in-native
+
+# stops at the first failure instead of running every command
+ship:
+  (execution): once
+  (scripts):
+    - echo first
+    - echo second
