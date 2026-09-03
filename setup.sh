@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# cspell:words redir tlsv
+
 # Cloud development environment for merry.
 # The environment is defined by merry-setup and pinned to an immutable revision:
 # https://github.com/AndrewDongminYoo/merry-setup
