@@ -5,6 +5,9 @@ import 'package:merry/src/utils/pubspec.dart';
 import 'package:merry/src/utils/scripts_registry.dart';
 import 'package:tint/tint.dart';
 
+@Deprecated('Use RunCommand instead.')
+typedef RunCommmand = RunCommand;
+
 /// The `merry run` command
 /// which parses the arguments and execute the scripts in
 /// the executor using ffi.
