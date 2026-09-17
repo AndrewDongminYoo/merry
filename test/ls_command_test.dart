@@ -34,6 +34,7 @@ void main() {
       '+ fixture_project@0.1.0\n'
       '│\n'
       '├── build\n'
+      '│   ╰⇾ \$build d --debug\n'
       '│   ├── build debug (*default)\n'
       '│   └── build release\n'
       '│       ╰⇾ \$present\n'

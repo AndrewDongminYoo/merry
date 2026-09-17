@@ -190,12 +190,15 @@ class ListCommand extends Command<int> {
         final source = registry.lookup(node.fullPath);
         if (source is Map) {
           final defaultValue = source[defaultDefinitionKey];
-          if (defaultValue is String && defaultValue.startsWith(referencePrefix)) {
-            final target = registry.getReference(defaultValue).script;
+          if (defaultValue is String &&
+              defaultValue.startsWith(referencePrefix) &&
+              runnableScripts(source) == defaultValue) {
+            final reference = registry.getReference(defaultValue);
+            final target = registry.getAliasMap()[reference.script] ?? reference.script;
             final targetNode = _findNode(roots, target);
             if (targetNode != null) {
               targetNode.isDefault = true;
-              node.hiddenDefaultReference = defaultValue;
+              if (reference.extra.isEmpty) node.hiddenDefaultReference = defaultValue;
             }
           }
         }
