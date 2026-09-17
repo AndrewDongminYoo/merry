@@ -13,7 +13,7 @@ import 'package:tint/tint.dart';
 ///
 /// - the package name, version, and the script will also be
 /// printed out as the info message
-class RunCommmand extends Command<int> {
+class RunCommand extends Command<int> {
   @override
   String get name => 'run';
 
