@@ -17,7 +17,37 @@ Future<Map<String, dynamic>> runLs(String format) async {
   return jsonDecode(result.stdout as String) as Map<String, dynamic>;
 }
 
+Future<String> runLsTree() async {
+  final result = await Process.run(
+    Platform.resolvedExecutable,
+    ['run', path.absolute('bin/merry.dart'), 'ls'],
+    workingDirectory: path.absolute('test', 'fixtures', 'scripts_project'),
+  );
+  expect(result.exitCode, 0, reason: '${result.stderr}');
+  return result.stdout as String;
+}
+
 void main() {
+  test('ls tree separates command groups from referenced workflow steps', () async {
+    expect(
+      await runLsTree(),
+      '+ fixture_project@0.1.0\n'
+      '│\n'
+      '├── build\n'
+      '│   ├── build debug (*default)\n'
+      '│   └── build release\n'
+      '│       ╰⇾ \$present\n'
+      '├── ls\n'
+      '├── native\n'
+      '├── posttest\n'
+      '├── present\n'
+      '├── pretest\n'
+      '├── ship\n'
+      '└── test\n'
+      '\n',
+    );
+  });
+
   test('ls --output=tasks lists every script except pre/post hooks', () async {
     final output = await runLs('tasks');
     final labels = (output['tasks'] as List).map((task) => (task as Map)['label']).toList();
@@ -25,6 +55,7 @@ void main() {
     // `pretest` and `posttest` are hooks of `test`, while `present` has no
     // `sent` script to hook onto and therefore stays on the list.
     expect(labels, [
+      'merry: build',
       'merry: build debug',
       'merry: build release',
       'merry: ls',

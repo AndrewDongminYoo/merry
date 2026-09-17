@@ -5,14 +5,15 @@ import 'package:args/command_runner.dart';
 import 'package:merry/utils.dart';
 import 'package:tint/tint.dart';
 
-/// Returns length of the longest string in a list, or `0` when empty.
-int _getLongestStringLength(List<String> strings) {
-  return strings.fold(0, (longest, str) => str.length > longest ? str.length : longest);
-}
+/// A displayed command group or runnable script in the command tree.
+class _TreeNode {
+  _TreeNode({required this.fullPath});
 
-/// Returns the path prefix to display in a tree.
-String _getPrefix(int current, int len) {
-  return current == len - 1 ? '└──' : '├──';
+  final String fullPath;
+  final Map<String, _TreeNode> children = {};
+  Definition? definition;
+  bool isDefault = false;
+  String? hiddenDefaultReference;
 }
 
 /// The `merry ls` command
@@ -77,7 +78,7 @@ class ListCommand extends Command<int> {
       return 0;
     }
 
-    _printTree(info, paths, definitions, showDescriptions);
+    _printTree(info, paths, definitions, registry, showDescriptions);
     return 0;
   }
 
@@ -163,48 +164,88 @@ class ListCommand extends Command<int> {
     Info info,
     List<String> paths,
     List<Definition> definitions,
+    ScriptsRegistry registry,
     bool showDescriptions,
   ) {
-    final references = definitions
-        .map((def) => def.scripts.where((s) => s.startsWith(referencePrefix)).toList())
-        .toList();
-
     final buffer = StringBuffer();
     buffer.writeln('+ $info');
     buffer.writeln('│');
 
-    final longestScriptLength = _getLongestStringLength(paths);
+    final roots = <String, _TreeNode>{};
+    for (final entry in paths.asMap().entries) {
+      final segments = entry.value.split(' ');
+      var nodes = roots;
+      _TreeNode? node;
+      final fullPathSegments = <String>[];
+      for (final segment in segments) {
+        fullPathSegments.add(segment);
+        node = nodes.putIfAbsent(segment, () => _TreeNode(fullPath: fullPathSegments.join(' ')));
+        nodes = node.children;
+      }
+      node!.definition = definitions[entry.key];
+    }
 
-    for (final pathEntry in paths.asMap().entries) {
-      final pathIndex = pathEntry.key;
-      final path = pathEntry.value;
-      final description = definitions[pathIndex].description;
-      final refs = references[pathIndex];
+    void markDefaults(Iterable<_TreeNode> nodes) {
+      for (final node in nodes) {
+        final source = registry.lookup(node.fullPath);
+        if (source is Map) {
+          final defaultValue = source[defaultDefinitionKey];
+          if (defaultValue is String && defaultValue.startsWith(referencePrefix)) {
+            final target = registry.getReference(defaultValue).script;
+            final targetNode = _findNode(roots, target);
+            if (targetNode != null) {
+              targetNode.isDefault = true;
+              node.hiddenDefaultReference = defaultValue;
+            }
+          }
+        }
+        markDefaults(node.children.values);
+      }
+    }
 
-      final formattedDescription = showDescriptions && description != null
-          ? '${''.padLeft(longestScriptLength + 4 - path.length)} - $description'.gray()
-          : '';
+    markDefaults(roots.values);
+    _writeTree(buffer, roots.values, '', showDescriptions);
 
-      buffer.writeln('${_getPrefix(pathIndex, paths.length)} $path $formattedDescription');
+    stdout.writeln(buffer.toString());
+  }
 
-      for (final refEntry in refs.asMap().entries) {
-        final referenceIndex = refEntry.key;
-        final reference = refEntry.value;
+  _TreeNode? _findNode(Map<String, _TreeNode> roots, String path) {
+    _TreeNode? node;
+    var nodes = roots;
+    for (final segment in path.split(' ')) {
+      node = nodes[segment];
+      if (node == null) return null;
+      nodes = node.children;
+    }
+    return node;
+  }
 
+  void _writeTree(StringBuffer buffer, Iterable<_TreeNode> nodes, String prefix, bool showDescriptions) {
+    final orderedNodes = nodes.toList()..sort((a, b) => a.fullPath.compareTo(b.fullPath));
+    for (final entry in orderedNodes.asMap().entries) {
+      final node = entry.value;
+      final isLast = entry.key == orderedNodes.length - 1;
+      final description = node.definition?.description;
+      final formattedDescription = showDescriptions && description != null ? ' - $description'.gray() : '';
+      buffer.writeln(
+        '$prefix${isLast ? '└──' : '├──'} ${node.fullPath}${node.isDefault ? ' (*default)' : ''}$formattedDescription',
+      );
+
+      final contentPrefix = '$prefix${isLast ? '    ' : '│   '}';
+      final references =
+          node.definition?.scripts.where(
+            (script) => script.startsWith(referencePrefix) && script != node.hiddenDefaultReference,
+          ) ??
+          const <String>[];
+      for (final reference in references) {
         final formattedReference = reference
             .replaceAll('\\$referencePrefix', referencePrefix)
             .split(referenceNestingDelimiter)
             .join(' ')
             .green();
-
-        buffer.writeln(
-          '${pathIndex == paths.length - 1 ? ' ' : '│'}'
-          '   '
-          '${_getPrefix(referenceIndex, refs.length)} $formattedReference',
-        );
+        buffer.writeln('$contentPrefix╰⇾ $formattedReference');
       }
+      _writeTree(buffer, node.children.values, contentPrefix, showDescriptions);
     }
-
-    stdout.writeln(buffer.toString());
   }
 }
