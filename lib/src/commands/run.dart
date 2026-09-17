@@ -5,6 +5,9 @@ import 'package:merry/src/utils/pubspec.dart';
 import 'package:merry/src/utils/scripts_registry.dart';
 import 'package:tint/tint.dart';
 
+@Deprecated('Use RunCommand instead.')
+typedef RunCommmand = RunCommand;
+
 /// The `merry run` command
 /// which parses the arguments and execute the scripts in
 /// the executor using ffi.
@@ -13,7 +16,7 @@ import 'package:tint/tint.dart';
 ///
 /// - the package name, version, and the script will also be
 /// printed out as the info message
-class RunCommmand extends Command<int> {
+class RunCommand extends Command<int> {
   @override
   String get name => 'run';
 

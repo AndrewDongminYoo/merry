@@ -12,7 +12,10 @@ present: echo not-a-hook
 ls: echo shadowing-a-subcommand
 
 build:
-  debug: echo build-debug
+  (default): $build:d --debug
+  debug:
+    (aliases): d
+    (scripts): echo build-debug
   release:
     - $present
     - echo build-release

@@ -14,7 +14,7 @@ Future<int> runMerry(List<String> arguments) async {
   final runner = CommandRunner<int>('merry', 'A script runner/manager for dart.');
 
   runner
-    ..addCommand(RunCommmand())
+    ..addCommand(RunCommand())
     ..addCommand(InitCommand())
     ..addCommand(ListCommand())
     ..addCommand(UpgradeCommand())
