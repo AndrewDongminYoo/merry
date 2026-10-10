@@ -894,8 +894,43 @@ scripts: merry.yaml
 
       final exitCode = await registry.runScript("check");
 
-      // Runs all; the exit code is the last command's, not the earlier failure.
-      expect(exitCode, equals(0));
+      // Runs all, but a later success must not mask the earlier failure (#50).
+      expect(exitCode, equals(7));
+      expect(ran, equals(["fail lint", "run other"]));
+    });
+
+    test("(execution): multiple returns the first failure's exit code", () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "check": ["fail lint", "run other", "fail types"],
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          if (cmd.contains("lint")) return 7;
+          if (cmd.contains("types")) return 3;
+          return 0;
+        },
+      );
+
+      expect(await registry.runScript("check"), equals(7));
+      expect(ran, equals(["fail lint", "run other", "fail types"]));
+    });
+
+    test("(execution): multiple keeps a failed \$reference's exit code", () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {
+          "lint": "fail lint",
+          "check": [r"$lint", "run other"],
+        },
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return cmd.contains("fail") ? 7 : 0;
+        },
+      );
+
+      expect(await registry.runScript("check"), equals(7));
       expect(ran, equals(["fail lint", "run other"]));
     });
 

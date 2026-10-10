@@ -232,9 +232,10 @@ class ScriptsRegistry {
     bool stopOnFirstFailure = false,
   }) async {
     final definition = getDefinition(scriptString);
-    var exitCode = 0;
+    var firstFailure = 0;
 
     for (final script in definition.scripts) {
+      final int exitCode;
       if (script.startsWith(referencePrefix)) {
         final ref = getReference(script);
         exitCode = await _runScriptWithReferences(
@@ -269,12 +270,15 @@ class ScriptsRegistry {
       // `multiple` mode (#23); otherwise stop on the first failure only when the
       // caller demands it (a pre-hook gate, whose later command's success must
       // not mask an earlier failure) or when `(execution): once` asks for
-      // fail-fast. `multiple` still runs every command that merely fails.
-      if (exitCode == _sigintExitCode || (exitCode != 0 && (stopOnFirstFailure || definition.execution == 'once'))) {
-        break;
+      // fail-fast. `multiple` still runs every command that merely fails, but
+      // reports the first failure so a later success cannot mask it (#50).
+      if (exitCode == _sigintExitCode) return exitCode;
+      if (exitCode != 0) {
+        if (firstFailure == 0) firstFailure = exitCode;
+        if (stopOnFirstFailure || definition.execution == 'once') break;
       }
     }
 
-    return exitCode;
+    return firstFailure;
   }
 }
