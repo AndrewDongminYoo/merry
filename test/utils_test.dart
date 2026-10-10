@@ -810,6 +810,27 @@ scripts: merry.yaml
       expect(await registry.runScript("build"), equals(7));
     });
 
+    test("runScript returns a failing post-hook's exit code after success", () async {
+      // #51: the post-hook's failure was discarded and the script exited 0.
+      final registry = ScriptsRegistry(
+        {"build": "echo build", "postbuild": "exit 3"},
+        runCommand: (cmd) async => cmd.contains("exit 3") ? 3 : 0,
+      );
+      expect(await registry.runScript("build"), equals(3));
+    });
+
+    test("runScript keeps the main failure over a failing post-hook", () async {
+      final registry = ScriptsRegistry(
+        {"build": "exit 7", "postbuild": "exit 3"},
+        runCommand: (cmd) async {
+          if (cmd.contains("exit 7")) return 7;
+          if (cmd.contains("exit 3")) return 3;
+          return 0;
+        },
+      );
+      expect(await registry.runScript("build"), equals(7));
+    });
+
     test("runScript stops when its pre-hook fails", () async {
       final directory = Directory.systemTemp.createTempSync(
         'merry-pre-hook-test-',

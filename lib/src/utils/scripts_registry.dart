@@ -217,6 +217,9 @@ class ScriptsRegistry {
     if (postScript != null) {
       final postExitCode = await _runScript('post$canonical', ancestors: path);
       if (postExitCode == _sigintExitCode) return postExitCode;
+      // A failing post-hook fails the script, but the main script's own
+      // failure comes first and is the code reported (#51).
+      if (exitCode == 0) return postExitCode;
     }
 
     return exitCode;
