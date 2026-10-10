@@ -1,3 +1,21 @@
+## [2.5.0] - 2026-10-10
+
+### Changed
+
+- `merry ls` renders command groups as a nested tree instead of a flat path list, shows sequential `$` references as ordered `╰⇾` workflow edges under their caller, and marks the target of a referenced `(default)` with `(*default)`.
+  The `(*default)` marker resolves aliases, and a default that passes extra arguments stays visible as its own edge.
+  JSON and VS Code task output are unchanged.
+
+### Fixed
+
+- A list script in the default `(execution): multiple` mode now exits with the first failing command's code. Every command still runs, but a later success no longer masks an earlier failure, which previously made lists such as `["false", "true"]` exit 0.
+  Append `|| true` to a command whose failure should be ignored.
+- A failing `post<name>` hook now fails the script when the main script succeeded, instead of being discarded with exit 0. A failing main script still reports its own code.
+
+### Deprecated
+
+- `RunCommmand` is renamed to `RunCommand`. The misspelled name remains as a deprecated alias.
+
 ## [2.4.0] - 2026-08-31
 
 ### Added
