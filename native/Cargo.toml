@@ -18,7 +18,7 @@ crate-type = ["cdylib"]
 [dependencies]
 ctrlc = "3.2.4"
 shared_child = "1.0.0"
-colored = "2"
+colored = "3"
 
 # killpg, to take down a script's whole process group on Ctrl+C
 [target.'cfg(unix)'.dependencies]
