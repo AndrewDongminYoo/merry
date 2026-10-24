@@ -46,3 +46,22 @@ jobs:
       # The suite also runs in publish.yml, but that only fires on a v* tag, so
       # until now a regression could reach main and only surface at release.
       - run: dart test
+
+  native:
+    name: Native crate builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The build never pushes; do not leave a credential in .git/config
+          # while it runs.
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f # v1
+        with:
+          toolchain: stable
+
+      # build.yml compiles the blobs only on manual dispatch, so a Rust change
+      # (a cargo Dependabot bump included) never compiled on a PR. The blob check
+      # above still fails until the blobs are rebuilt; this says whether they can be.
+      - run: cargo build --locked --manifest-path native/Cargo.toml
