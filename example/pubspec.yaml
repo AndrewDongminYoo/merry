@@ -3,7 +3,7 @@ version: 0.0.1
 description: An example for merry.
 
 environment:
-  sdk: ">=3.10.4 <4.0.0"
+  sdk: ^3.13.7
 
 dev_dependencies:
   build_runner: ^2.13.1
