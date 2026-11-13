@@ -21,7 +21,7 @@ jobs:
           # Verification never pushes; do not leave a credential in
           # .git/config while it runs.
           persist-credentials: false
-      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
 
       # Nothing here compiles native/, so a release would happily ship blobs
       # built from older sources.
@@ -53,7 +53,7 @@ jobs:
           # Publishing authenticates to pub.dev over OIDC, not the git
           # credential, so the checkout does not need to keep one.
           persist-credentials: false
-      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
 
       - name: Publish
         run: dart pub publish --force
