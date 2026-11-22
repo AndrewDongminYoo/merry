@@ -47,6 +47,26 @@ jobs:
       # until now a regression could reach main and only surface at release.
       - run: dart test
 
+  test-min-sdk:
+    name: Tests on the minimum Dart SDK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The suite never pushes; do not leave a credential in .git/config
+          # while it runs.
+          persist-credentials: false
+      # Keep in step with the lower bound of `environment: sdk` in
+      # pubspec.yaml: a dev dependency whose lower bound needs a newer SDK
+      # fails `dart pub get` here.
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+        with:
+          sdk: 3.10.4
+
+      - run: dart pub get
+      - run: dart analyze
+      - run: dart test
+
   native:
     name: Native crate builds
     runs-on: ubuntu-latest
