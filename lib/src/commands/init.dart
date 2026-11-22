@@ -2,7 +2,8 @@ import 'dart:io' show Directory, File, FileMode, FileSystemEntity, FileSystemEnt
 
 import 'package:args/command_runner.dart';
 import 'package:merry/error.dart' show ErrorCode, MerryError;
-import 'package:merry/utils.dart' show JsonMap, Pubspec, pubspecFileName, rejectRest, scriptsKey;
+import 'package:merry/utils.dart'
+    show JsonMap, Pubspec, ToJsonMapExtension, pubspecFileName, readYamlMap, rejectRest, scriptsKey;
 import 'package:path/path.dart' as path;
 
 /// Default file the generated scripts are written to.
@@ -144,7 +145,26 @@ class InitCommand extends Command<int> {
     rejectRest(super.argResults!, usage);
 
     final pubspec = Pubspec(currentDirPath: projectPath);
-    final content = await pubspec.getContent();
+
+    // The manifest is read and later appended to, and both follow symlinks.
+    // Decide from where they land: a `pubspec.yaml` linked to a file outside the
+    // project must be neither read nor edited. A manifest that cannot be opened
+    // (missing, a dangling link, a link loop, a missing project directory) gets
+    // the same missing-manifest error `getContent` reports, and nothing is read.
+    // The OS resolves the path here, so a `..` after a linked directory is taken
+    // from that directory's target. Both the read and the append below use this
+    // resolved path, not `pubspec.yaml`, so a link swapped after the check does
+    // not redirect them.
+    if (!await File(pubspec.filePath).exists()) {
+      throw MerryError(type: ErrorCode.fileNotFound, body: {'path': pubspec.filePath});
+    }
+    final resolvedProjectDir = await Directory(projectPath).resolveSymbolicLinks();
+    final checkedPubspec = await File(pubspec.filePath).resolveSymbolicLinks();
+    if (!path.isWithin(resolvedProjectDir, checkedPubspec)) {
+      throw MerryError(type: ErrorCode.invalidScripts);
+    }
+
+    final content = (await readYamlMap(checkedPubspec)).toJsonMap();
     final scripts = content[scriptsKey];
 
     final String target;
@@ -224,7 +244,8 @@ class InitCommand extends Command<int> {
     await scriptsFile.parent.create(recursive: true);
     await scriptsFile.writeAsString(_buildTemplate(content, projectPath));
 
-    if (!linked) await _linkPubspec(pubspec.filePath, target);
+    // Write to the path that was checked above, not to the name that leads there.
+    if (!linked) await _linkPubspec(checkedPubspec, target);
 
     // Load what was just written through the normal read path, so a broken
     // template or a botched pubspec edit fails here instead of on first use.
