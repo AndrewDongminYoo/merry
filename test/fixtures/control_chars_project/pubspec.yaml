@@ -1,0 +1,19 @@
+# Every config string that `merry ls` prints carries a terminal control
+# sequence here. YAML double-quoted escapes keep this file plain text.
+# ignore: package_names
+name: "evil\e[2Jpkg"
+version: "1.0.0\a"
+scripts:
+  "hide\e[8mme": echo hidden
+  "bell\x07": echo bell
+  call:
+    (description): "erase\e[2K\rline"
+    (scripts):
+      - "$hide\e[8mme"
+      - echo call
+  rtl:
+    (description): "abc\u202Edef"
+    (scripts): echo rtl
+  "빌드":
+    (description): 한글 설명
+    (scripts): echo korean

@@ -168,7 +168,7 @@ class ListCommand extends Command<int> {
     bool showDescriptions,
   ) {
     final buffer = StringBuffer();
-    buffer.writeln('+ $info');
+    buffer.writeln('+ ${displaySafe('$info')}');
     buffer.writeln('│');
 
     final roots = <String, _TreeNode>{};
@@ -229,9 +229,11 @@ class ListCommand extends Command<int> {
       final node = entry.value;
       final isLast = entry.key == orderedNodes.length - 1;
       final description = node.definition?.description;
-      final formattedDescription = showDescriptions && description != null ? ' - $description'.gray() : '';
+      final formattedDescription = showDescriptions && description != null
+          ? ' - ${displaySafe(description)}'.gray()
+          : '';
       buffer.writeln(
-        '$prefix${isLast ? '└──' : '├──'} ${node.fullPath}${node.isDefault ? ' (*default)' : ''}$formattedDescription',
+        '$prefix${isLast ? '└──' : '├──'} ${displaySafe(node.fullPath)}${node.isDefault ? ' (*default)' : ''}$formattedDescription',
       );
 
       final contentPrefix = '$prefix${isLast ? '    ' : '│   '}';
@@ -241,11 +243,9 @@ class ListCommand extends Command<int> {
           ) ??
           const <String>[];
       for (final reference in references) {
-        final formattedReference = reference
-            .replaceAll('\\$referencePrefix', referencePrefix)
-            .split(referenceNestingDelimiter)
-            .join(' ')
-            .green();
+        final formattedReference = displaySafe(
+          reference.replaceAll('\\$referencePrefix', referencePrefix).split(referenceNestingDelimiter).join(' '),
+        ).green();
         buffer.writeln('$contentPrefix╰⇾ $formattedReference');
       }
       _writeTree(buffer, node.children.values, contentPrefix, showDescriptions);

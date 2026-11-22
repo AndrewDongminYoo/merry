@@ -17,11 +17,11 @@ Future<Map<String, dynamic>> runLs(String format) async {
   return jsonDecode(result.stdout as String) as Map<String, dynamic>;
 }
 
-Future<String> runLsTree() async {
+Future<String> runLsTree({String fixture = 'scripts_project', List<String> args = const []}) async {
   final result = await Process.run(
     Platform.resolvedExecutable,
-    ['run', path.absolute('bin/merry.dart'), 'ls'],
-    workingDirectory: path.absolute('test', 'fixtures', 'scripts_project'),
+    ['run', path.absolute('bin/merry.dart'), 'ls', ...args],
+    workingDirectory: path.absolute('test', 'fixtures', fixture),
   );
   expect(result.exitCode, 0, reason: '${result.stderr}');
   return result.stdout as String;
@@ -45,6 +45,27 @@ void main() {
       '├── pretest\n'
       '├── ship\n'
       '└── test\n'
+      '\n',
+    );
+  });
+
+  test('ls tree escapes control characters from every config string', () async {
+    final output = await runLsTree(fixture: 'control_chars_project', args: ['--description']);
+
+    // no raw control character reaches the terminal, while the tree glyphs
+    // and the Korean name and description still print as written
+    expect(output.runes.where((rune) => rune < 0x20 && rune != 0x0A), isEmpty);
+    expect(output.runes.where((rune) => rune == 0x202E), isEmpty);
+    expect(
+      output,
+      '+ evil\\x1B[2Jpkg@1.0.0\\x07\n' // package name and version
+      '│\n'
+      '├── bell\\x07\n' // script path
+      '├── call - erase\\x1B[2K\\x0Dline\n' // description
+      '│   ╰⇾ \$hide\\x1B[8mme\n' // reference
+      '├── hide\\x1B[8mme\n'
+      '├── rtl - abc\\u{202E}def\n' // bidirectional override
+      '└── 빌드 - 한글 설명\n'
       '\n',
     );
   });

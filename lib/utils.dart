@@ -1,4 +1,5 @@
 export 'src/utils/definition.dart';
+export 'src/utils/display_safe.dart';
 export 'src/utils/info.dart';
 export 'src/utils/json_map.dart';
 export 'src/utils/positional_args.dart';
