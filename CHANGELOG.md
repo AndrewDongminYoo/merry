@@ -1,3 +1,15 @@
+## [2.5.1] - 2026-11-22
+
+### Fixed
+
+- `merry ls` no longer prints terminal control characters from the config in its tree output.
+  Control characters and Unicode bidirectional overrides in the package name and version, script paths, descriptions and references are shown as visible escapes such as `\x1B` and `\u{202E}`, so a config cannot move the cursor, recolor, clear or rewrite the terminal.
+  Other text, including non-ASCII script names and descriptions, prints unchanged. JSON and VS Code task output are unchanged.
+
+### Internal
+
+- Rebuild the precompiled native libraries with updated Rust dependencies, including `ctrlc` 3.5.3, `nix` 0.32.0, `libc` and `shared_child`.
+
 ## [2.5.0] - 2026-10-10
 
 ### Changed
