@@ -47,6 +47,11 @@ jobs:
       # until now a regression could reach main and only surface at release.
       - run: dart test
 
+      # The pre-publish check runs on every pull request, the release one
+      # included, so a release needs only the merge and the tag; publish.yml
+      # then publishes over OIDC with no local step.
+      - run: dart pub publish --dry-run
+
   test-windows:
     name: Tests on Windows
     runs-on: windows-latest
