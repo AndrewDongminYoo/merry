@@ -7,6 +7,13 @@ import 'package:path/path.dart' as path;
 /// Gets the absolute path of a file.
 String _getAbsolutePath(String filePath) => path.normalize(path.absolute(filePath));
 
+/// The text `merry source` prints for [sourcePath].
+///
+/// A terminal gets the path with control characters escaped, so a crafted
+/// file name cannot rewrite the screen. A pipe or a command substitution gets
+/// the path unchanged, because a script opens the file by that exact name.
+String sourceOutput(String sourcePath, {required bool toTerminal}) => toTerminal ? displaySafe(sourcePath) : sourcePath;
+
 /// The `merry source` command
 /// which prints out the current config file location.
 class SourceCommand extends Command<int> {
@@ -42,7 +49,9 @@ class SourceCommand extends Command<int> {
     final source = await pubspec.getSource();
 
     if (check) await pubspec.getScripts();
-    stdout.writeln(absolute ? _getAbsolutePath(source) : source);
+    stdout.writeln(
+      sourceOutput(absolute ? _getAbsolutePath(source) : source, toTerminal: stdout.hasTerminal),
+    );
     return 0;
   }
 }

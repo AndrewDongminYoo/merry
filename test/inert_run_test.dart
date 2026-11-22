@@ -86,8 +86,8 @@ void main() {
       // POSIX single-quotes the appended value, so it runs as plain text.
       expect(marker.existsSync(), isFalse, reason: 'the payload reached the shell');
       expect(result.exitCode, 0, reason: '${result.stderr}');
-      // merry echoes the whole command (`$ echo '...'`) before it runs it, so
-      // a substring match would pass on the echo alone. The child's `echo`
+      // merry echoes the command with the argument (`$ echo ...`) before it
+      // runs it, so a substring match would pass on the echo alone. The child's `echo`
       // prints the argument on a line of its own only if it arrived intact.
       expect(const LineSplitter().convert(result.stdout as String), contains(quotedPayload));
     }

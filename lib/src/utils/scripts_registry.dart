@@ -1,7 +1,8 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Platform, stdout;
 
 import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
+import 'package:merry/src/utils/command_echo.dart' show formatCommandEcho;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
 import 'package:merry/src/utils/shell_quote.dart' show assertShellInert, shellChangeDirectory, shellQuote;
@@ -17,6 +18,7 @@ import 'package:merry/utils.dart'
         runnableScripts,
         scriptsDefinitionKey,
         substituteVariables;
+import 'package:tint/tint.dart';
 
 final _metaKeyPattern = RegExp(r'^\(\w+\)$');
 const _sigintExitCode = 130;
@@ -42,6 +44,19 @@ List<String> _quoteAppended(List<String> args) {
     }
   }
   return args.map(shellQuote).toList();
+}
+
+/// Prints [echo] the way the command is announced before it runs: `$ `, the
+/// dimmed text, then an empty line.
+///
+/// This runs outside the injectable `runCommand`, so a stubbed runner still
+/// echoes. The flush keeps the echo ahead of the command's own output, which
+/// the native runner writes to the same stdout directly.
+Future<void> _echoCommand(String echo) async {
+  stdout
+    ..writeln('\$ ${echo.dim()}')
+    ..writeln();
+  await stdout.flush();
 }
 
 /// A class that holds scripts and provides utilities
@@ -277,15 +292,18 @@ class ScriptsRegistry {
           final cdCmd = shellChangeDirectory(definition.workdir!);
           normalizedScript = '$cdCmd $normalizedScript';
         }
+        // the echo shows this template, so a substituted value (a CI token,
+        // a command-line argument) does not land in the output
+        final template = normalizedScript;
         // apply ${VAR} substitution using (variables) definitions and env
         normalizedScript = substituteVariables(
           normalizedScript,
           getVariables(),
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
-        exitCode = await _runCommand(
-          _joinStrings([positional.key, ..._quoteAppended(positional.value)]),
-        );
+        final command = _joinStrings([positional.key, ..._quoteAppended(positional.value)]);
+        await _echoCommand(formatCommandEcho(template, positional.value));
+        exitCode = await _runCommand(command);
       }
 
       // Stop the list on a SIGINT (130) so Ctrl+C ends the sequence even in

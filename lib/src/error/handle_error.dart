@@ -1,6 +1,7 @@
 import 'dart:io' show stderr;
 
 import 'package:merry/error.dart' show ErrorCode, MerryError;
+import 'package:merry/src/utils/display_safe.dart';
 import 'package:string_similarity/string_similarity.dart';
 import 'package:tint/tint.dart';
 
@@ -16,7 +17,7 @@ void handleError(MerryError e) {
       final scriptRun = e.body['script'] as String;
       final suggestions = e.body['suggestions'] as List<String>;
 
-      buffer.writeln('$prefix Unable to find script named "$scriptRun".');
+      buffer.writeln('$prefix Unable to find script named "${displaySafe(scriptRun)}".');
 
       final bestMatch = StringSimilarity.findBestMatch(
         scriptRun,
@@ -25,7 +26,7 @@ void handleError(MerryError e) {
       if (bestMatch.rating != null && bestMatch.rating! >= 0.5) {
         buffer.writeln();
         buffer.writeln('$prefix Did you mean to run this?');
-        buffer.writeln('$prefix    ${bestMatch.target}');
+        buffer.writeln('$prefix    ${displaySafe('${bestMatch.target}')}');
       }
 
     case ErrorCode.invalidScript:
@@ -34,7 +35,7 @@ void handleError(MerryError e) {
       final nestedScripts = paths.where((path) => path.startsWith('$scriptRun ')).toList();
 
       if (nestedScripts.isNotEmpty) {
-        buffer.writeln('$prefix Script "$scriptRun" is a nested script.');
+        buffer.writeln('$prefix Script "${displaySafe(scriptRun)}" is a nested script.');
 
         final bestMatch = StringSimilarity.findBestMatch(
           scriptRun,
@@ -43,14 +44,14 @@ void handleError(MerryError e) {
         if (bestMatch.rating != null && bestMatch.rating! >= 0.5) {
           buffer.writeln();
           buffer.writeln('$prefix Did you mean to run this?');
-          buffer.writeln('$prefix    ${bestMatch.target}');
+          buffer.writeln('$prefix    ${displaySafe('${bestMatch.target}')}');
         }
       } else {
-        buffer.writeln('$prefix Script definition of "$scriptRun" is invalid.');
+        buffer.writeln('$prefix Script definition of "${displaySafe(scriptRun)}" is invalid.');
       }
 
     case ErrorCode.circularReference:
-      final cycle = (e.body['cycle'] as List<String>).join(' -> ');
+      final cycle = (e.body['cycle'] as List<String>).map(displaySafe).join(' -> ');
       buffer.writeln('$prefix Circular script reference detected: $cycle.');
 
     case ErrorCode.missingScripts:
@@ -64,36 +65,36 @@ void handleError(MerryError e) {
 
     case ErrorCode.fileNotFound:
       final filePath = e.body['path'] as String;
-      buffer.writeln('$prefix File not found at "$filePath".');
+      buffer.writeln('$prefix File not found at "${displaySafe(filePath)}".');
 
     case ErrorCode.invalidYaml:
       final filePath = e.body['path'] as String;
       final origin = e.body['origin'] as Object;
 
-      buffer.writeln('$prefix Incorrect YAML format in "$filePath".');
-      buffer.writeln('$prefix Origin $origin');
+      buffer.writeln('$prefix Incorrect YAML format in "${displaySafe(filePath)}".');
+      buffer.writeln('$prefix Origin ${displaySafeLines('$origin')}');
 
     case ErrorCode.invalidYamlMap:
       final filePath = e.body['path'] as String;
-      buffer.writeln('$prefix YAML is not a map in "$filePath".');
+      buffer.writeln('$prefix YAML is not a map in "${displaySafe(filePath)}".');
 
     case ErrorCode.platformNotSupported:
       final abi = e.body['abi'] as String?;
 
       buffer.writeln('$prefix Unsupported plaform.');
-      buffer.writeln('$prefix Architecture "$abi" is not supported.');
+      buffer.writeln('$prefix Architecture "${displaySafe('$abi')}" is not supported.');
 
     case ErrorCode.invalidPackageUri:
       final packageUri = e.body['packageUri'] as String;
 
-      buffer.writeln('$prefix Unable to resolve package URI "$packageUri".');
+      buffer.writeln('$prefix Unable to resolve package URI "${displaySafe(packageUri)}".');
 
     case ErrorCode.invalidBlob:
       final path = e.body['path'] as String;
       final origin = e.body['origin'] as Object;
 
-      buffer.writeln('$prefix Unable to load dynamic library blob at "$path".');
-      buffer.writeln('$prefix Origin $origin');
+      buffer.writeln('$prefix Unable to load dynamic library blob at "${displaySafe(path)}".');
+      buffer.writeln('$prefix Origin ${displaySafeLines('$origin')}');
   }
 
   stderr.write(buffer.toString());

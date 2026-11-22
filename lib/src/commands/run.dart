@@ -1,6 +1,7 @@
 import 'dart:io' show stdout;
 
 import 'package:args/command_runner.dart';
+import 'package:merry/src/utils/display_safe.dart';
 import 'package:merry/src/utils/pubspec.dart';
 import 'package:merry/src/utils/scripts_registry.dart';
 import 'package:tint/tint.dart';
@@ -57,7 +58,7 @@ class RunCommand extends Command<int> {
 
       final registry = ScriptsRegistry(scripts);
 
-      stdout.writeln('> $info $arg'.bold());
+      stdout.writeln('> ${displaySafe('$info')} ${displaySafe(arg)}'.bold());
       return registry.runScript(arg, extra: extra);
     }
   }

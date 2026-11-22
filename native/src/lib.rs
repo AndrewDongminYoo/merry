@@ -1,4 +1,3 @@
-use colored::Colorize;
 use shared_child::SharedChild;
 use std::ffi::CStr;
 use std::os::raw::c_char;
@@ -131,9 +130,6 @@ pub unsafe extern "C" fn run_script(ptr: *const c_char) -> i32 {
         Ok(value) => String::from(value),
         Err(_) => return ERR_INVALID_UTF8,
     };
-
-    println!("$ {}", script.dimmed());
-    println!();
 
     let (shell, option): (&str, &str) = if cfg!(target_os = "windows") {
         ("cmd", "/C")

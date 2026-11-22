@@ -27,3 +27,12 @@ String displaySafe(String text) {
   }
   return buffer.toString();
 }
+
+/// Like [displaySafe], but keeps line breaks.
+///
+/// [text] is split on `\n` and `\r\n`, each line is escaped on its own, and
+/// the lines are joined with `\n`, so multi-line text still prints as several
+/// lines. A lone `\r` is not a line break and is escaped.
+String displaySafeLines(String text) => text.split(_lineBreak).map(displaySafe).join('\n');
+
+final _lineBreak = RegExp('\r?\n');
