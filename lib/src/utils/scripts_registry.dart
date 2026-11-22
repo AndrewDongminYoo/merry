@@ -1,8 +1,10 @@
+import 'dart:io' show Platform;
+
 import 'package:merry/bindings.dart' as bindings;
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/src/utils/json_map.dart';
 import 'package:merry/src/utils/positional_args.dart' show applyPositionalArgs;
-import 'package:merry/src/utils/shell_quote.dart' show shellChangeDirectory, shellQuote;
+import 'package:merry/src/utils/shell_quote.dart' show assertShellInert, shellChangeDirectory, shellQuote;
 import 'package:merry/utils.dart'
     show
         Definition,
@@ -21,6 +23,26 @@ const _sigintExitCode = 130;
 
 /// Join a list of [String] with Space as delimiter.
 String _joinStrings(List<String> list) => list.map((s) => s.trim()).join(' ');
+
+/// Quotes the extra arguments that no `$N` consumed, for appending to the
+/// command.
+///
+/// The extra arguments are the arguments after `--` and the arguments that a
+/// `$name` reference passes. They are merged before this point, the same way
+/// a `$N` token reads both.
+///
+/// On Windows `cmd` honors no escape for `"` and expands `%` inside quotes, so
+/// [shellQuote] cannot keep an arbitrary value inert there. Each argument must
+/// pass [assertShellInert] first. On POSIX the single-quote form is sound, so
+/// the arguments are quoted as before.
+List<String> _quoteAppended(List<String> args) {
+  if (Platform.isWindows) {
+    for (var i = 0; i < args.length; i++) {
+      assertShellInert(args[i], 'appended argument ${i + 1}');
+    }
+  }
+  return args.map(shellQuote).toList();
+}
 
 /// A class that holds scripts and provides utilities
 /// to work with them.
@@ -262,7 +284,7 @@ class ScriptsRegistry {
         );
         final positional = applyPositionalArgs(normalizedScript, extra);
         exitCode = await _runCommand(
-          _joinStrings([positional.key, ...positional.value.map(shellQuote)]),
+          _joinStrings([positional.key, ..._quoteAppended(positional.value)]),
         );
       }
 
