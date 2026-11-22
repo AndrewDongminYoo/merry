@@ -11,6 +11,9 @@ Future<Map<String, dynamic>> runLs(String format) async {
     Platform.resolvedExecutable,
     ['run', path.absolute('bin/merry.dart'), 'ls', '--output=$format'],
     workingDirectory: path.absolute('test', 'fixtures', 'scripts_project'),
+    // merry writes UTF-8; the default systemEncoding is not UTF-8 on Windows
+    stdoutEncoding: utf8,
+    stderrEncoding: utf8,
   );
 
   expect(result.exitCode, 0, reason: '${result.stderr}');
@@ -22,6 +25,8 @@ Future<String> runLsTree({String fixture = 'scripts_project', List<String> args 
     Platform.resolvedExecutable,
     ['run', path.absolute('bin/merry.dart'), 'ls', ...args],
     workingDirectory: path.absolute('test', 'fixtures', fixture),
+    stdoutEncoding: utf8,
+    stderrEncoding: utf8,
   );
   expect(result.exitCode, 0, reason: '${result.stderr}');
   return result.stdout as String;

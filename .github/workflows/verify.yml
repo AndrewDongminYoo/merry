@@ -47,6 +47,23 @@ jobs:
       # until now a regression could reach main and only surface at release.
       - run: dart test
 
+  test-windows:
+    name: Tests on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The suite never pushes; do not leave a credential in .git/config
+          # while it runs.
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@2286a0c042b44434fe26d292bbce8d34f7ec662b # v1.8.2
+
+      - run: dart pub get
+
+      # Quoting, positional arguments and the native blob take a separate path
+      # on Windows (cmd.exe and windows_x64.dll), which the Linux job never runs.
+      - run: dart test
+
   test-min-sdk:
     name: Tests on the minimum Dart SDK
     runs-on: ubuntu-latest
