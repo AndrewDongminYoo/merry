@@ -274,6 +274,12 @@ merry in  # → merry install
 **Variable substitution**
 
 Define reusable variables in a `(variables)` section at the top level or inside any command group. Reference them with `${VAR}` syntax in scripts. Environment variables are used as a fallback for undefined names.
+merry splices a substituted value into the command as text, so a `(variables)` value or an environment fallback value may contain only letters, digits, spaces and `_@%+=:,./-`. merry refuses to run the script when a value contains any other character.
+On Windows the allowed set drops `%`, because `cmd` expands `%VAR%` even inside quotes, and adds `\`, so a Windows path such as `C:\Users\me` passes.
+On Windows the arguments that merry appends to the command are checked against the same set. They are the arguments after `--` and the arguments that a `$name` reference passes (for example `test\foo_test.dart` in `$test test\foo_test.dart`), when no `$N` consumes them. On macOS and Linux, appended arguments are single-quoted and can hold any character.
+To use an environment variable that holds other characters (for example a URL with a query string) on macOS and Linux, let the shell expand it instead of merry: replace `${NAME}` with `"$NAME"`, or with `$NAME` when the placeholder is already inside double quotes (for example `tool "${NAME}"` becomes `tool "$NAME"`).
+When a letter, digit or `_` follows the placeholder, end the name with a quote, or the shell reads a longer variable name: `${NAME}suffix` becomes `"$NAME"suffix`, and `"${NAME}_x"` becomes `"$NAME""_x"`.
+When the placeholder is inside single quotes, close the single quotes around it, because the shell does not expand a variable inside single quotes: `'a${NAME}b'` becomes `'a'"$NAME"'b'`.
 
 ```yaml
 (variables):

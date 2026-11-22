@@ -33,8 +33,18 @@ Map<String, String> collectVariables(JsonMap map) {
 }
 
 /// Replaces `${VAR}` tokens in [script] using [variables] first, then
-/// [Platform.environment] as fallback. Unknown variables are left unchanged.
-String substituteVariables(String script, Map<String, String> variables) {
+/// [environment] (default [Platform.environment]) as fallback. Unknown
+/// variables are left unchanged.
+///
+/// Both sources are spliced as text, so a value that carries a shell-active
+/// character makes this throw a [FormatException] (see [assertShellInert]).
+/// The environment is not trusted: a caller such as a CI job can set it.
+String substituteVariables(
+  String script,
+  Map<String, String> variables, {
+  Map<String, String>? environment,
+}) {
+  final env = environment ?? Platform.environment;
   return script.replaceAllMapped(RegExp(r'\$\{(\w+)\}'), (match) {
     final name = match.group(1)!;
     final defined = variables[name];
@@ -44,6 +54,22 @@ String substituteVariables(String script, Map<String, String> variables) {
       assertShellInert(defined, 'variable \${$name}');
       return defined;
     }
-    return Platform.environment[name] ?? match.group(0)!;
+    final fallback = env[name];
+    if (fallback == null) return match.group(0)!;
+    assertShellInert(
+      fallback,
+      'environment variable \${$name}',
+      // No hint on Windows: cmd expands %NAME% before it parses the command
+      // line, so the value would run as command syntax there.
+      hint: Platform.isWindows
+          ? null
+          : 'To pass this value, let the shell expand it: replace \${$name} with "\$$name", '
+                'or with \$$name when the placeholder is already inside double quotes. '
+                'When a letter, digit or _ follows the placeholder, end the name with a quote: '
+                'write "\$$name"suffix, or "...\$$name""suffix..." inside double quotes. '
+                'When the placeholder is inside single quotes, close them around it: '
+                "'a\${$name}b' becomes 'a'\"\$$name\"'b'.",
+    );
+    return fallback;
   });
 }

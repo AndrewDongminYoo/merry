@@ -429,8 +429,8 @@ scripts: merry.yaml
     test('rejects a referenced arg that carries a shell-active character', () {
       // Fail-closed: a placeholder can sit inside quotes, where `$(...)` runs in
       // double quotes and `;` runs in single quotes, so refuse rather than
-      // splice. (Only referenced args are checked; unused ones are appended in a
-      // safe unquoted position.)
+      // splice. (Only referenced args are checked here; unused ones are appended
+      // by ScriptsRegistry, which checks them on Windows.)
       expect(
         () => applyPositionalArgs('echo \$1', [r'$(touch pwned)']),
         throwsA(isA<FormatException>()),
@@ -513,6 +513,187 @@ scripts: merry.yaml
       expect(
         () => substituteVariables('echo \${V}', {'V': '; rm -rf /'}),
         throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('substitutes an inert environment fallback value', () {
+      expect(
+        substituteVariables('echo \${OUT}', {}, environment: {'OUT': 'build/release dir'}),
+        equals('echo build/release dir'),
+      );
+    });
+
+    test('rejects an environment fallback value that carries a shell-active character', () {
+      // A caller such as a CI job controls the environment, so a fallback value
+      // is checked like a (variables) value before it is spliced.
+      expect(
+        () => substituteVariables('echo \${OUT}', {}, environment: {'OUT': r'$(touch pwned)'}),
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('environment variable \${OUT}'),
+              // On POSIX the message names the form that lets the shell expand
+              // it instead. On Windows it must not suggest %OUT%: cmd expands
+              // that before it parses the line, so the value would run as
+              // command syntax.
+              Platform.isWindows ? isNot(contains('%OUT%')) : contains('"\$OUT"'),
+              // A placeholder already inside double quotes takes the bare form;
+              // adding quotes there would leave the expansion unquoted.
+              Platform.isWindows ? isNot(contains('%OUT%')) : contains('with \$OUT when'),
+              // A following name character must stay outside the name, or the
+              // shell reads a different variable (\$OUTsuffix).
+              Platform.isWindows ? isNot(contains('%OUT%')) : contains('"\$OUT"suffix'),
+              // Single quotes stop the expansion, so they must be closed
+              // around the placeholder rather than kept.
+              Platform.isWindows ? isNot(contains('%OUT%')) : contains("'a'\"\$OUT\"'b'"),
+            ),
+          ),
+        ),
+      );
+    });
+
+    test('accepts a backslash in an environment fallback value on Windows only', () {
+      // `\` is a path separator with no meaning in cmd, but an escape in sh.
+      if (Platform.isWindows) {
+        expect(
+          substituteVariables('echo \${OUT}', {}, environment: {'OUT': r'C:\Users\me'}),
+          equals(r'echo C:\Users\me'),
+        );
+      } else {
+        expect(
+          () => substituteVariables('echo \${OUT}', {}, environment: {'OUT': r'C:\Users\me'}),
+          throwsA(isA<FormatException>()),
+        );
+      }
+    });
+
+    test('a (variables) value overrides the environment, which is then not checked', () {
+      expect(
+        substituteVariables('echo \${OUT}', {'OUT': 'safe'}, environment: {'OUT': '; touch pwned'}),
+        equals('echo safe'),
+      );
+    });
+
+    test('leaves \${VAR} unchanged when neither source defines it', () {
+      expect(
+        substituteVariables('echo \${OUT}', {}, environment: {}),
+        equals('echo \${OUT}'),
+      );
+    });
+  });
+
+  group('assertShellInert', () {
+    test('refuses % on Windows and accepts it on POSIX', () {
+      // `cmd` expands %VAR% even inside quotes; POSIX shells do not.
+      if (Platform.isWindows) {
+        expect(() => assertShellInert('100%', 'value'), throwsA(isA<FormatException>()));
+        expect(() => assertShellInert('%PATH%', 'value'), throwsA(isA<FormatException>()));
+      } else {
+        expect(() => assertShellInert('100%', 'value'), returnsNormally);
+        expect(() => assertShellInert('%PATH%', 'value'), returnsNormally);
+      }
+    });
+  });
+
+  group('shellQuote on Windows paths', () {
+    test('keeps a backslash in a quoted Windows path', () {
+      if (Platform.isWindows) {
+        expect(shellQuote(r'C:\Program Files\app'), equals(r'"C:\Program Files\app"'));
+      } else {
+        expect(shellQuote(r'C:\Program Files\app'), equals(r"'C:\Program Files\app'"));
+      }
+    });
+  });
+
+  group('appended extra arguments', () {
+    for (final char in ['"', '%', '&', '|', '^', '<', '>']) {
+      test('an appended argument with $char is refused on Windows only', () async {
+        final ran = <String>[];
+        final registry = ScriptsRegistry(
+          {'show': 'echo'},
+          runCommand: (cmd) async {
+            ran.add(cmd);
+            return 0;
+          },
+        );
+        final value = 'a${char}b';
+
+        if (Platform.isWindows) {
+          await expectLater(
+            registry.runScript('show', extra: [value]),
+            throwsA(isA<FormatException>()),
+          );
+          expect(ran, isEmpty);
+        } else {
+          // POSIX keeps the single-quote form, which is sound there.
+          expect(await registry.runScript('show', extra: [value]), equals(0));
+          expect(ran, equals(['echo ${shellQuote(value)}']));
+          expect(ran.single, char == '%' ? 'echo a%b' : "echo 'a${char}b'");
+        }
+      });
+    }
+
+    test('an appended Windows path with a backslash is appended quoted', () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {'show': 'echo'},
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return 0;
+        },
+      );
+
+      expect(await registry.runScript('show', extra: [r'test\foo_test.dart']), equals(0));
+      expect(
+        ran.single,
+        equals(Platform.isWindows ? r'echo "test\foo_test.dart"' : r"echo 'test\foo_test.dart'"),
+      );
+    });
+
+    test('an argument that a reference passes is checked like one after --', () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {'show': 'echo', 'ref': r'$show a%b'},
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return 0;
+        },
+      );
+
+      if (Platform.isWindows) {
+        await expectLater(
+          registry.runScript('ref'),
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('appended argument 1'), isNot(contains('after --'))),
+            ),
+          ),
+        );
+        expect(ran, isEmpty);
+      } else {
+        expect(await registry.runScript('ref'), equals(0));
+        expect(ran, equals(['echo a%b']));
+      }
+    });
+
+    test('an inert appended argument with a space is appended quoted', () async {
+      final ran = <String>[];
+      final registry = ScriptsRegistry(
+        {'show': 'echo'},
+        runCommand: (cmd) async {
+          ran.add(cmd);
+          return 0;
+        },
+      );
+
+      expect(await registry.runScript('show', extra: ['hello world', 'x']), equals(0));
+      expect(
+        ran.single,
+        equals(Platform.isWindows ? 'echo "hello world" x' : "echo 'hello world' x"),
       );
     });
   });
