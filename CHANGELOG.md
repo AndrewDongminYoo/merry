@@ -1,3 +1,24 @@
+## [2.6.0] - 2026-11-22
+
+### Changed
+
+These changes refuse or print input that 2.5.1 accepted or printed differently. Each one closes a way for a value from the environment, the command line or an untrusted checkout to run as shell syntax, leak into logs or reach a file outside the project.
+
+- A `${NAME}` with no `(variables)` definition now takes its environment value only when that value holds letters, digits, spaces and `_@%+=:,./-`; otherwise the script refuses to run, as it already did for `(variables)` values and `$N` arguments. To pass any other value on macOS and Linux, let the shell expand it: write `"$NAME"` instead of `${NAME}`. The error message and the README show the double-quote, suffix and single-quote forms.
+- On Windows, arguments that no `$N` consumes (after `--`, or passed through a `$name` reference) are checked against the same set, `%` is refused in substituted and appended values because `cmd` expands `%VAR%` even inside quotes, and `\` is allowed so Windows paths keep working.
+- The line merry prints before each command now shows the script as written, before `${NAME}` and `$N` substitution, so a token from the environment or the command line no longer lands in the output. Appended arguments are shown quoted as they run, control characters are escaped, and a multi-line script still prints as several lines.
+
+### Fixed
+
+- `merry init` refuses a `pubspec.yaml` that resolves outside the project, instead of reading it and appending `scripts:` to it through the link. A manifest linked to a file inside the project still works.
+- A config whose YAML aliases expand past 100,000 entries, or that nests deeper than 64 levels, now fails with an invalid-YAML error instead of making every command use exponential time and memory.
+- The `merry run` banner, error messages, `merry init` messages and `merry source` escape control characters in config, command-line and path values. `merry source` escapes only when its output is a terminal, so a script that captures the path still gets the exact name.
+
+### Internal
+
+- The precompiled native libraries no longer print the command, and the `colored` crate is removed.
+- CI runs the test suite on Windows and on the minimum Dart SDK (3.10.4), and the dev dependency lower bounds resolve on that SDK.
+
 ## [2.5.1] - 2026-11-22
 
 ### Fixed
