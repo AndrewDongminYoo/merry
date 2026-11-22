@@ -3,7 +3,7 @@ import 'dart:io' show Directory, File, FileMode, FileSystemEntity, FileSystemEnt
 import 'package:args/command_runner.dart';
 import 'package:merry/error.dart' show ErrorCode, MerryError;
 import 'package:merry/utils.dart'
-    show JsonMap, Pubspec, ToJsonMapExtension, pubspecFileName, readYamlMap, rejectRest, scriptsKey;
+    show JsonMap, Pubspec, ToJsonMapExtension, displaySafe, pubspecFileName, readYamlMap, rejectRest, scriptsKey;
 import 'package:path/path.dart' as path;
 
 /// Default file the generated scripts are written to.
@@ -236,7 +236,8 @@ class InitCommand extends Command<int> {
     final scriptsFile = File(scriptsPath);
     final linked = content.containsKey(scriptsKey);
 
-    if (existingType == FileSystemEntityType.file && !_confirm('$target already exists. Replace its contents?')) {
+    if (existingType == FileSystemEntityType.file &&
+        !_confirm('${displaySafe(target)} already exists. Replace its contents?')) {
       stdout.writeln('Nothing changed.');
       return 0;
     }
@@ -252,7 +253,7 @@ class InitCommand extends Command<int> {
     await Pubspec(currentDirPath: projectPath).getScripts();
 
     stdout.writeln(
-      linked ? 'Wrote $target.' : 'Wrote $target and linked it from $pubspecFileName.',
+      linked ? 'Wrote ${displaySafe(target)}.' : 'Wrote ${displaySafe(target)} and linked it from $pubspecFileName.',
     );
     stdout.writeln('Run `merry ls` to see the available scripts.');
     return 0;

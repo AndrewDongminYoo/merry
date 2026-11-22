@@ -1,3 +1,4 @@
+export 'src/utils/command_echo.dart';
 export 'src/utils/definition.dart';
 export 'src/utils/display_safe.dart';
 export 'src/utils/info.dart';
