@@ -216,6 +216,191 @@ void main() {
     expect(collectionKey.toJsonMap, throwsA(isA<FormatException>()));
   });
 
+  group('toJsonMap limits', () {
+    // a chain of `levels` maps, each one nested in the next under key `a`
+    Map<dynamic, dynamic> nested(int levels) {
+      var map = <dynamic, dynamic>{'echo': 'hi'};
+      for (var i = 1; i < levels; i++) {
+        map = <dynamic, dynamic>{'a': map};
+      }
+      return map;
+    }
+
+    test('rejects aliases that fan out past the node limit, quickly', () {
+      // each level aliases the previous one 10 times: 10^5 map occurrences
+      // from a file of a few hundred bytes
+      final yaml = StringBuffer('l0: &l0 {cmd: echo hi}\n');
+      for (var level = 1; level <= 5; level++) {
+        final refs = List.generate(10, (i) => 'k$i: *l${level - 1}').join(', ');
+        yaml.writeln('l$level: &l$level {$refs}');
+      }
+      final map = loadYaml(yaml.toString()) as Map;
+
+      final stopwatch = Stopwatch()..start();
+      expect(
+        map.toJsonMap,
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('expands to too many entries'),
+          ),
+        ),
+      );
+      expect(stopwatch.elapsed, lessThan(const Duration(milliseconds: 500)));
+    });
+
+    test('rejects list aliases that fan out past the node limit, quickly', () {
+      // lists pass through unconverted but still expand later, so a fan-out
+      // of lists counts the same as a fan-out of maps
+      final yaml = StringBuffer('scripts:\n  l0: &l0 [echo hi]\n');
+      for (var level = 1; level <= 6; level++) {
+        final refs = List.filled(10, '*l${level - 1}').join(', ');
+        yaml.writeln('  l$level: &l$level [$refs]');
+      }
+      final map = loadYaml(yaml.toString()) as Map;
+
+      final stopwatch = Stopwatch()..start();
+      expect(
+        map.toJsonMap,
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('expands to too many entries'),
+          ),
+        ),
+      );
+      expect(stopwatch.elapsed, lessThan(const Duration(milliseconds: 500)));
+    });
+
+    test('counts the scalar entries of a repeated alias, quickly', () {
+      // one collection of 200 scalars, aliased 1,000 times: few collections,
+      // but 200,000 scalar copies to walk
+      final keys = List.generate(200, (i) => 'k$i: echo $i').join(', ');
+      final items = List.generate(200, (i) => 'echo $i').join(', ');
+      for (final anchor in ['{$keys}', '[$items]']) {
+        final yaml = StringBuffer('base: &base $anchor\nscripts:\n');
+        for (var i = 0; i < 1000; i++) {
+          yaml.writeln('  s$i: *base');
+        }
+        final map = loadYaml(yaml.toString()) as Map;
+
+        final stopwatch = Stopwatch()..start();
+        expect(
+          map.toJsonMap,
+          throwsA(
+            isA<FormatException>().having(
+              (e) => e.message,
+              'message',
+              contains('expands to too many entries'),
+            ),
+          ),
+        );
+        expect(stopwatch.elapsed, lessThan(const Duration(milliseconds: 500)));
+      }
+    });
+
+    test('rejects lists nested deeper than the depth limit', () {
+      final yaml = 'a: ${'[' * 70}echo hi${']' * 70}';
+      expect(
+        (loadYaml(yaml) as Map).toJsonMap,
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('nests too deeply'),
+          ),
+        ),
+      );
+    });
+
+    test('passes a list value through unchanged', () {
+      final map =
+          loadYaml('''
+build: &steps [echo a, {nested: [echo b]}]
+again: *steps
+''')
+              as Map;
+
+      final json = map.toJsonMap();
+
+      expect(identical(json['build'], map['build']), isTrue);
+      expect(
+        json['again'],
+        equals([
+          'echo a',
+          {
+            'nested': ['echo b'],
+          },
+        ]),
+      );
+    });
+
+    test('rejects nesting deeper than the depth limit', () {
+      expect(
+        nested(65).toJsonMap,
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('nests too deeply'),
+          ),
+        ),
+      );
+    });
+
+    test('accepts nesting at the depth limit', () {
+      expect(nested(64).toJsonMap, returnsNormally);
+    });
+
+    test('rejects deep nesting read from YAML', () {
+      final yaml = '${'{a: ' * 70}echo hi${'}' * 70}';
+      expect(
+        (loadYaml(yaml) as Map).toJsonMap,
+        throwsA(
+          isA<FormatException>().having(
+            (e) => e.message,
+            'message',
+            contains('nests too deeply'),
+          ),
+        ),
+      );
+    });
+
+    test('converts a config that reuses one alias a few times', () {
+      final map =
+          loadYaml('''
+base: &base {cmd: echo hi, (description): shared}
+scripts:
+  a: *base
+  b: *base
+  c: {nested: *base}
+''')
+              as Map;
+
+      final json = map.toJsonMap();
+
+      const base = {'cmd': 'echo hi', '(description)': 'shared'};
+      expect(
+        json,
+        equals({
+          'base': base,
+          'scripts': {
+            'a': base,
+            'b': base,
+            'c': {'nested': base},
+          },
+        }),
+      );
+      final scripts = json['scripts'] as Map;
+      expect(scripts, isA<JsonMap>());
+      expect(scripts['a'], isA<JsonMap>());
+      // each occurrence is still its own copy
+      expect(identical(scripts['a'], scripts['b']), isFalse);
+    });
+  });
+
   // grouping a bunch of tests didn't work with IOOverrides
   // therefore we have a big test instead
   test('Pubspec class', () {
