@@ -6,6 +6,7 @@ environment:
   sdk: ">=3.10.4 <4.0.0"
 
 dev_dependencies:
+  # Keep this example resolvable with Dart 3.10.4.
   build_runner: ^2.13.1
   merry:
     path: ../
